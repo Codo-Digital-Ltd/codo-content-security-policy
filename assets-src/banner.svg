@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1544 500" width="1544" height="500">
+	<title>Codo Content Security Policy</title>
+	<defs>
+		<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+			<stop offset="0" stop-color="#143947"/>
+			<stop offset="1" stop-color="#025373"/>
+		</linearGradient>
+	</defs>
+	<rect width="1544" height="500" fill="url(#bg)"/>
+
+	<!-- Quiet grid: the allowlist -->
+	<g fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="2">
+		<path d="M-20 430 C 300 380, 520 470, 860 400 S 1350 300, 1580 340"/>
+		<path d="M-20 70 C 320 120, 640 30, 980 90 S 1400 160, 1580 110"/>
+	</g>
+	<g fill="#ffffff" fill-opacity="0.08">
+		<rect x="1250" y="150" width="200" height="14" rx="7"/>
+		<rect x="1250" y="190" width="150" height="14" rx="7"/>
+		<rect x="1250" y="230" width="180" height="14" rx="7"/>
+		<rect x="1250" y="270" width="110" height="14" rx="7"/>
+	</g>
+	<circle cx="1466" cy="277" r="9" fill="#F29472"/>
+
+	<!-- Icon -->
+	<g transform="translate(130 110) scale(1.09375)">
+		<rect width="256" height="256" rx="56" fill="#ffffff" fill-opacity="0.08"/>
+		<path d="M120 40 L192 66 V122 C192 168 160 198 120 214 C80 198 48 168 48 122 V66 Z" fill="#ffffff"/>
+		<g stroke="#025373" stroke-width="11" stroke-linecap="round">
+			<line x1="84" y1="96" x2="156" y2="96"/>
+			<line x1="84" y1="124" x2="140" y2="124"/>
+			<line x1="84" y1="152" x2="124" y2="152"/>
+		</g>
+		<circle cx="190" cy="182" r="42" fill="#F29472" stroke="#0b4560" stroke-width="10"/>
+		<path d="M171 183 L185 197 L210 170" fill="none" stroke="#ffffff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+	</g>
+
+	<!-- Wordmark and promise -->
+	<text x="470" y="238" font-family="Inter Display, Inter, sans-serif" font-weight="700" font-size="112" fill="#ffffff" letter-spacing="-2">Codo CSP</text>
+	<text x="474" y="306" font-family="Inter, sans-serif" font-size="40" fill="#d9e5e8">Content Security Policy, Report-Only first.</text>
+	<rect x="474" y="342" width="56" height="5" rx="2.5" fill="#F29472"/>
+	<text x="474" y="392" font-family="Inter, sans-serif" font-size="28" fill="#9fbfca">Free  ·  No upsells  ·  From Codo Digital</text>
+</svg>

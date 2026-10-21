@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+	<title>Codo Content Security Policy</title>
+	<rect width="256" height="256" rx="56" fill="#025373"/>
+	<!-- Shield -->
+	<path d="M120 40 L192 66 V122 C192 168 160 198 120 214 C80 198 48 168 48 122 V66 Z" fill="#ffffff"/>
+	<!-- Allowlist lines -->
+	<g stroke="#025373" stroke-width="11" stroke-linecap="round">
+		<line x1="84" y1="96" x2="156" y2="96"/>
+		<line x1="84" y1="124" x2="140" y2="124"/>
+		<line x1="84" y1="152" x2="124" y2="152"/>
+	</g>
+	<!-- Verified badge -->
+	<circle cx="190" cy="182" r="42" fill="#F29472" stroke="#025373" stroke-width="10"/>
+	<path d="M171 183 L185 197 L210 170" fill="none" stroke="#ffffff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

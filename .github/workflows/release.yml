@@ -1,0 +1,155 @@
+# Releases happen by merging to main.
+#
+# Bump the version in codo-content-security-policy.php (header + CODO_CSP_VERSION) and
+# readme.txt (Stable tag + changelog) in the same pull request. When it lands
+# on main and every check passes, this workflow commits the release to the
+# WordPress.org SVN repository, then tags vX.Y.Z and publishes a GitHub
+# release with the zip. WordPress.org then offers the update to every site running
+# the plugin through the normal Dashboard > Updates screen (and auto-updates
+# where the site owner has enabled them).
+#
+# Pushes to main that don't change the version only sync readme.txt and
+# .wordpress-org assets (e.g. a "Tested up to" bump) to WordPress.org.
+#
+# Required secrets (in the "wordpress-org" environment): SVN_USERNAME and
+# SVN_PASSWORD for a WordPress.org account with commit access to the plugin.
+# Third-party actions are pinned to commit SHAs because they see those secrets.
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+  # Manual "Run workflow" button, e.g. for the first release after
+  # WordPress.org approves the plugin and the SVN secrets are added.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  detect:
+    name: Detect version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_new: ${{ steps.version.outputs.is_new }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.3'
+          coverage: none
+      - id: version
+        # WordPress.org SVN is the source of truth: if tags/X.Y.Z exists the
+        # version is live, so a release that failed half-way is retried on
+        # the next push instead of being skipped.
+        run: |
+          version="$(php bin/check-version.php)"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          repo="$(curl -s -o /dev/null -w '%{http_code}' https://plugins.svn.wordpress.org/codo-content-security-policy/)"
+          if [ "$repo" = "404" ]; then
+            echo "is_new=skip" >> "$GITHUB_OUTPUT"
+            echo "::notice::codo-content-security-policy is not on WordPress.org yet (awaiting review); skipping deploy."
+            exit 0
+          fi
+          status="$(curl -s -o /dev/null -w '%{http_code}' "https://plugins.svn.wordpress.org/codo-content-security-policy/tags/${version}/")"
+          case "$status" in
+            200) echo "is_new=false" >> "$GITHUB_OUTPUT"; echo "${version} is already on WordPress.org." ;;
+            404) echo "is_new=true"  >> "$GITHUB_OUTPUT"; echo "${version} will be released." ;;
+            *)   echo "Unexpected HTTP ${status} from WordPress.org SVN; not releasing." >&2; exit 1 ;;
+          esac
+
+  release:
+    name: Release v${{ needs.detect.outputs.version }}
+    needs: [checks, detect]
+    if: needs.detect.outputs.is_new == 'true'
+    runs-on: ubuntu-latest
+    environment: wordpress-org
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Deploy to WordPress.org
+        id: deploy
+        uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2 # 2.3.0
+        with:
+          generate-zip: true
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: codo-content-security-policy
+          VERSION: ${{ needs.detect.outputs.version }}
+
+      - name: Tag and publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.detect.outputs.version }}
+        run: |
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then
+            gh release upload "v${VERSION}" "${{ steps.deploy.outputs.zip-path }}" --clobber
+          else
+            gh release create "v${VERSION}" "${{ steps.deploy.outputs.zip-path }}" \
+              --target "${GITHUB_SHA}" \
+              --title "Codo Content Security Policy ${VERSION}" \
+              --notes "See the changelog in readme.txt. Published to https://wordpress.org/plugins/codo-content-security-policy/"
+          fi
+
+  sync-readme:
+    name: Sync readme and assets
+    needs: [checks, detect]
+    if: needs.detect.outputs.is_new == 'false'
+    runs-on: ubuntu-latest
+    environment: wordpress-org
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: 10up/action-wordpress-plugin-asset-update@2480306f6f693672726d08b5917ea114cb2825f7 # 2.2.0
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: codo-content-security-policy
+          IGNORE_OTHER_FILES: true
+
+  backfill-github-release:
+    # If a past release reached WordPress.org but its GitHub release step
+    # failed, create the missing GitHub release (and zip) now.
+    name: Ensure GitHub release v${{ needs.detect.outputs.version }}
+    needs: [checks, detect]
+    if: needs.detect.outputs.is_new == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Create the release if it is missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.detect.outputs.version }}
+        run: |
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then
+            echo "v${VERSION} already has a GitHub release."
+            exit 0
+          fi
+          mkdir -p build/codo-content-security-policy
+          rsync -a --exclude-from=.distignore ./ build/codo-content-security-policy/
+          (cd build && zip -qr codo-content-security-policy.zip codo-content-security-policy)
+          gh release create "v${VERSION}" build/codo-content-security-policy.zip \
+            --target "${GITHUB_SHA}" \
+            --title "Codo Content Security Policy ${VERSION}" \
+            --notes "See the changelog in readme.txt. Published to https://wordpress.org/plugins/codo-content-security-policy/"

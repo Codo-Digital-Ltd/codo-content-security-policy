@@ -1,0 +1,92 @@
+name: CI
+
+# Pull requests run these checks once (not again for the branch push); on
+# main they run as part of the Release workflow. Use "Run workflow" to check a
+# branch that has no pull request yet.
+on:
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    name: Coding standards
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+      - run: composer install --no-interaction --no-progress
+      - name: PHP_CodeSniffer (WordPress Coding Standards + PHP 7.4 compatibility)
+        run: vendor/bin/phpcs
+      - name: Versions agree (header, constant, readme Stable tag, changelog)
+        run: php bin/check-version.php
+
+  test:
+    name: Tests (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: sodium
+          coverage: none
+          tools: composer:v2
+      - run: composer install --no-interaction --no-progress
+      - run: vendor/bin/phpunit --no-coverage
+
+  coverage:
+    name: Coverage (gate 95%)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.3'
+          extensions: sodium
+          coverage: pcov
+          tools: composer:v2
+      - run: composer install --no-interaction --no-progress
+      - run: vendor/bin/phpunit --coverage-clover=build/clover.xml --coverage-text
+      - name: Enforce minimum line coverage
+        run: php bin/coverage-gate.php build/clover.xml 95
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: build/clover.xml
+
+  plugin-check:
+    name: WordPress.org Plugin Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the distributable plugin
+        run: |
+          mkdir -p build/codo-content-security-policy
+          rsync -a --exclude-from=.distignore ./ build/codo-content-security-policy/
+      - uses: wordpress/plugin-check-action@10857da14b6c2246d15402b3e69f777edcf8c12e # v1.1.9
+        with:
+          build-dir: build/codo-content-security-policy

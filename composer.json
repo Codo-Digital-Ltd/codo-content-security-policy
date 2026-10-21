@@ -1,0 +1,28 @@
+{
+  "name": "cododigital/codo-content-security-policy",
+  "description": "Content-Security-Policy headers for WordPress, with Report-Only first, a draft policy, violation reports and asset scanning.",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0-or-later",
+  "authors": [{"name": "Codo Digital", "homepage": "https://cododigital.co.uk"}],
+  "require": {"php": ">=7.4"},
+  "require-dev": {
+    "phpunit/phpunit": "^9.6",
+    "brain/monkey": "^2.6",
+    "mockery/mockery": "^1.6",
+    "wp-coding-standards/wpcs": "^3.1",
+    "phpcompatibility/phpcompatibility-wp": "^2.1",
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.0"
+  },
+  "autoload-dev": {"psr-4": {"CodoDigital\\Csp\\Tests\\": "tests/"}},
+  "config": {
+    "allow-plugins": {"dealerdirect/phpcodesniffer-composer-installer": true},
+    "platform": {"php": "7.4.33"},
+    "sort-packages": true
+  },
+  "scripts": {
+    "test": "phpunit",
+    "coverage": "phpunit --coverage-text --coverage-clover=build/clover.xml",
+    "lint": "phpcs",
+    "fix": "phpcbf"
+  }
+}
