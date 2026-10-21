@@ -8,7 +8,7 @@ Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Content-Security-Policy headers that start in Report-Only, with a draft policy for safe changes, built-in violation reports and asset scanning. Free.
+Just Content-Security-Policy, not a security suite. Starts in Report-Only, with draft policies, built-in violation reports and page scanning.
 
 == Description ==
 
@@ -97,6 +97,12 @@ Source, issues and tests: [github.com/Codo-Digital-Ltd/codo-content-security-pol
 5. When reports stop appearing, click **Enforce the policy**.
 
 == Frequently Asked Questions ==
+
+= How is this different from security plugins that include CSP? =
+
+It only does Content Security Policy. Security suites tend to offer CSP as one setting among many, often a text box for the header with little help building it. This plugin is built around getting the policy right: it starts in Report-Only, collects violation reports on your own site, scans your pages for the sources they use, and puts changes to an enforced policy through a draft first.
+
+It adds no firewall, login protection or malware scanning, so it sits alongside whichever security plugin you already use. Just make sure that plugin isn't also sending a policy header; the scan warns you if one is.
 
 = Will this break my site? =
 
