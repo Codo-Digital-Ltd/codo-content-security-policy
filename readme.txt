@@ -41,7 +41,7 @@ It is built by [Codo Digital](https://cododigital.co.uk), a UK web development a
 
 = Scanning =
 
-* After you publish or update content, the page is fetched in the background as a logged-out visitor. Every script, stylesheet, font, image, iframe, media file and form target is checked against the policy, including the fonts and images inside its stylesheets.
+* After you publish or update content, the page is fetched in the background as a logged-out visitor. Every script, stylesheet, font, image, iframe, media file and form target is checked against the policy, including the fonts and images inside your site's own stylesheets. Stylesheets hosted elsewhere are never downloaded; for Google Fonts and Bunny Fonts the font host is filled in automatically.
 * Problems show in the posts list, in the editor, and on the Scan tab, each with an **Allow** button.
 * You can scan any page, the login page, or your 20 most recently updated pages.
 * Scans also warn when the server, a CDN or another plugin sends a second policy, and when the headers grow past 4 KB, which breaks NGINX's default FastCGI buffers.
@@ -158,10 +158,11 @@ Yes. Each site has its own policy, mode and reports, managed by its administrato
 
 == External services ==
 
-The plugin itself contacts no third-party service, with these exceptions:
+The plugin does not contact any third-party service, collect usage data or track visitors or administrators.
 
-* **Scanning:** the plugin fetches the page being scanned from your own site. It then downloads the stylesheets that page links to, from wherever they're hosted (for example `fonts.googleapis.com` if the page uses Google Fonts), to find the fonts and images they load. Only the stylesheet URL is requested, with the plugin's user agent and your site's URL, and nothing else is sent. Scans run when you publish or update content (if "Scan on save" is on) and when you start one on the Scan tab. The terms and privacy policy are those of the service hosting each stylesheet; for Google Fonts: https://policies.google.com/terms and https://policies.google.com/privacy
-* **External report collector (optional):** if you enter a collector URL (or define `CODO_CSP_REPORT_URI`), your visitors' browsers send violation reports straight to that URL. Each report holds the page URL, the blocked URL, the directive and, depending on the browser, a short sample of the blocked code. Nothing is sent if the setting is left empty. The terms and privacy policy are those of whoever runs that URL.
+* **Scanning stays on your site:** scans request pages and stylesheets from your own site only (a loopback request, like Site Health makes), and refuse redirects to other sites. Stylesheets hosted elsewhere are never downloaded.
+* **Presets are host names, not downloads:** presets such as Stripe, Google Fonts or reCAPTCHA only add those services' host names to the policy your site sends, so your visitors' browsers are allowed to load what your theme and plugins already use. This plugin never loads anything from them.
+* **External report collector (optional, off by default):** if you enter a collector URL (or define `CODO_CSP_REPORT_URI`), your visitors' browsers send violation reports straight to that URL instead of your own site. Each report holds the page URL, the blocked URL, the directive and, depending on the browser, a short sample of the blocked code. Nothing is sent anywhere else if the setting is left empty. The terms and privacy policy are those of whoever runs the URL you choose.
 
 == Changelog ==
 

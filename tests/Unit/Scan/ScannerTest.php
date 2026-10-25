@@ -225,7 +225,7 @@ class ScannerTest extends TestCase {
 		$this->assertSame( Scanner::MAX_HTML_BYTES, $args['limit_response_size'] );
 		$this->assertFalse( $args['sslverify'] );
 		$this->assertSame( 'no-cache', $args['headers']['Cache-Control'] );
-		$this->assertSame( 'Codo-CSP-Scanner/1.0.0-test; https://www.example.com/', $args['user-agent'] );
+		$this->assertSame( 'Codo-CSP-Scanner/1.0.0-test', $args['user-agent'] );
 	}
 
 	public function test_ssl_verification_follows_the_core_filter() {
@@ -485,7 +485,7 @@ class ScannerTest extends TestCase {
 		$this->assertSame( 'ok', $result['status'] );
 	}
 
-	public function test_stylesheets_are_fetched_and_parsed() {
+	public function test_own_stylesheets_are_fetched_and_off_site_ones_are_not() {
 		$this->remote[ self::PAGE ] = self::response(
 			self::html(
 				'',
@@ -494,8 +494,8 @@ class ScannerTest extends TestCase {
 				. '<link rel="stylesheet" href="/theme.css">'
 			)
 		);
-		$this->safe['https://fonts.googleapis.com/css?family=Inter'] = self::response( '@font-face{src:url(https://fonts.gstatic.com/s/inter.woff2)}', 200, array() );
-		$this->safe['https://www.example.com/theme.css']             = self::response( '.a{background:url(https://images.example.net/bg.png)}', 200, array() );
+		$this->remote['https://fonts.googleapis.com/css?family=Inter'] = self::response( '@font-face{src:url(https://fonts.gstatic.com/s/inter.woff2)}', 200, array() );
+		$this->remote['https://www.example.com/theme.css']             = self::response( '.a{background:url(https://images.example.net/bg.png)}', 200, array() );
 
 		$result = $this->scanner()->scan( self::PAGE );
 		$this->assertSame(
@@ -507,49 +507,44 @@ class ScannerTest extends TestCase {
 			self::flat( $result['issues'] )
 		);
 		$this->assertSame( 4, $result['checked'] );
-		$this->assertSame(
-			array(
-				'wp_safe_remote_get https://fonts.googleapis.com/css?family=Inter',
-				'wp_safe_remote_get https://www.example.com/theme.css',
-			),
-			array_slice( $this->requests, 1 )
-		);
+		// Only this site is ever requested: Google Fonts' font host is inferred.
+		$this->assertSame( array( 'wp_remote_get https://www.example.com/theme.css' ), array_slice( $this->requests, 1 ) );
+		$this->assertSame( 'Codo-CSP-Scanner/1.0.0-test', $this->request_args[1]['user-agent'] );
+		$this->assertSame( 0, $this->request_args[1]['redirection'] );
+		$this->assertSame( 5, $this->request_args[1]['timeout'] );
 	}
 
-	public function test_own_stylesheet_falls_back_to_loopback_request() {
-		$this->remote[ self::PAGE ]                          = self::response( self::html( '', '<link rel="stylesheet" href="/theme.css">' ) );
-		$this->remote['https://www.example.com/theme.css'] = self::response( '.a{background:url(https://images.example.net/bg.png)}', 200, array() );
+	public function test_known_font_services_are_inferred_without_requests() {
+		$this->remote[ self::PAGE ] = self::response(
+			self::html( '', '<link rel="stylesheet" href="https://fonts.bunny.net/css?family=inter">' )
+		);
 
 		$result = $this->scanner()->scan( self::PAGE );
-		$this->assertSame( array( 'img-src https://images.example.net 1' ), self::flat( $result['issues'] ) );
-		$this->assertSame(
-			array(
-				'wp_safe_remote_get https://www.example.com/theme.css',
-				'wp_remote_get https://www.example.com/theme.css',
-			),
-			array_slice( $this->requests, 1 )
-		);
+		$this->assertSame( array( 'style-src https://fonts.bunny.net 1', 'font-src https://fonts.bunny.net 1' ), self::flat( $result['issues'] ) );
+		$this->assertCount( 1, $this->requests );
 	}
 
-	public function test_own_stylesheet_fallback_does_not_follow_off_site_redirects() {
+	public function test_off_site_stylesheets_are_never_requested() {
+		$this->remote[ self::PAGE ] = self::response( self::html( '', '<link rel="stylesheet" href="https://cdn.example.net/x.css">' ) );
+		$this->remote['https://cdn.example.net/x.css'] = self::response( '.a{background:url(https://images.example.net/bg.png)}' );
+		$this->safe['https://cdn.example.net/x.css']   = self::response( '.a{background:url(https://images.example.net/bg.png)}' );
+
+		$result = $this->scanner()->scan( self::PAGE );
+		$this->assertSame( array( 'style-src https://cdn.example.net 1' ), self::flat( $result['issues'] ) );
+		$this->assertCount( 1, $this->requests );
+	}
+
+	public function test_own_stylesheet_does_not_follow_off_site_redirects() {
 		$this->remote[ self::PAGE ]                          = self::response( self::html( '', '<link rel="stylesheet" href="/theme.css">' ) );
 		$this->remote['https://www.example.com/theme.css'] = self::response( '', 302, array( 'location' => 'https://evil.example.org/x.css' ) );
 		$this->remote['https://evil.example.org/x.css']    = self::response( '.a{background:url(https://images.example.net/bg.png)}', 200, array() );
 
 		$result = $this->scanner()->scan( self::PAGE );
 		$this->assertSame( array(), $result['issues'] );
-		$this->assertSame(
-			array(
-				'wp_safe_remote_get https://www.example.com/theme.css',
-				'wp_remote_get https://www.example.com/theme.css',
-			),
-			array_slice( $this->requests, 1 )
-		);
-		$this->assertSame( 0, $this->request_args[2]['redirection'] );
-		$this->assertSame( 5, $this->request_args[2]['timeout'] );
+		$this->assertSame( array( 'wp_remote_get https://www.example.com/theme.css' ), array_slice( $this->requests, 1 ) );
 	}
 
-	public function test_own_stylesheet_fallback_follows_same_site_redirects() {
+	public function test_own_stylesheet_follows_same_site_redirects() {
 		$this->remote[ self::PAGE ]                          = self::response( self::html( '', '<link rel="stylesheet" href="/theme.css">' ) );
 		$this->remote['https://www.example.com/theme.css'] = self::response( '', 301, array( 'location' => '/theme.min.css' ) );
 		$this->remote['https://www.example.com/theme.min.css'] = self::response( '.a{background:url(https://images.example.net/bg.png)}', 200, array() );
@@ -563,7 +558,7 @@ class ScannerTest extends TestCase {
 	 * @preserveGlobalState disabled
 	 */
 	public function test_time_budget_caps_timeouts_and_stops_fetching_stylesheets() {
-		$clock = array( 1000.0, 1010.0, 1012.0, 1018.0, 1019.5, 1020.0 );
+		$clock = array( 1000.0, 1010.0, 1012.0, 1018.0, 1020.0 );
 		Functions\when( 'CodoDigital\\Csp\\Scan\\microtime' )->alias(
 			static function () use ( &$clock ) {
 				return count( $clock ) > 1 ? array_shift( $clock ) : $clock[0];
@@ -578,28 +573,11 @@ class ScannerTest extends TestCase {
 		$result = $this->scanner()->scan( self::PAGE );
 
 		// 1000: deadline 1020. 1010: page gets min(15, 10). 1012: a.css starts.
-		// 1018: a.css gets 2 s; its loopback fallback (1019.5) gets at least 1 s.
-		// 1020: out of time before b.css.
+		// 1018: a.css gets 2 s. 1020: out of time before b.css.
 		$this->assertSame( 10, $this->request_args[0]['timeout'] );
 		$this->assertSame( 2, $this->request_args[1]['timeout'] );
-		$this->assertSame( 1, $this->request_args[2]['timeout'] );
-		$this->assertSame(
-			array(
-				'wp_safe_remote_get https://www.example.com/a.css',
-				'wp_remote_get https://www.example.com/a.css',
-			),
-			array_slice( $this->requests, 1 )
-		);
+		$this->assertSame( array( 'wp_remote_get https://www.example.com/a.css' ), array_slice( $this->requests, 1 ) );
 		$this->assertSame( array( 'img-src https://images.example.net 1' ), self::flat( $result['issues'] ) );
-	}
-
-	public function test_foreign_stylesheet_error_is_not_retried() {
-		$this->remote[ self::PAGE ] = self::response( self::html( '', '<link rel="stylesheet" href="https://cdn.example.net/x.css">' ) );
-		$this->remote['https://cdn.example.net/x.css'] = self::response( '.a{background:url(https://images.example.net/bg.png)}' );
-
-		$result = $this->scanner()->scan( self::PAGE );
-		$this->assertSame( array( 'style-src https://cdn.example.net 1' ), self::flat( $result['issues'] ) );
-		$this->assertSame( array( 'wp_safe_remote_get https://cdn.example.net/x.css' ), array_slice( $this->requests, 1 ) );
 	}
 
 	public function test_failed_stylesheets_add_nothing() {
@@ -607,15 +585,19 @@ class ScannerTest extends TestCase {
 			self::html(
 				'',
 				'<link rel="stylesheet" href="/missing.css">'
+				. '<link rel="stylesheet" href="/gone.css">'
 				. '<link rel="stylesheet" href="ftp://www.example.com/x.css">'
 				. '<link rel="stylesheet" href="data:text/css,a{}">'
 				. '<link rel="stylesheet" href="weird:thing">'
 			)
 		);
-		$this->safe['https://www.example.com/missing.css'] = self::response( 'a{background:url(https://images.example.net/x.png)}', 404 );
+		$this->remote['https://www.example.com/missing.css'] = self::response( 'a{background:url(https://images.example.net/x.png)}', 404 );
 
 		$result = $this->scanner()->scan( self::PAGE );
-		$this->assertSame( array( 'wp_safe_remote_get https://www.example.com/missing.css' ), array_slice( $this->requests, 1 ) );
+		$this->assertSame(
+			array( 'wp_remote_get https://www.example.com/missing.css', 'wp_remote_get https://www.example.com/gone.css' ),
+			array_slice( $this->requests, 1 )
+		);
 		foreach ( $result['issues'] as $issue ) {
 			$this->assertNotSame( 'https://images.example.net', $issue['source'] );
 		}
@@ -628,7 +610,7 @@ class ScannerTest extends TestCase {
 		}
 		$this->remote[ self::PAGE ] = self::response( self::html( '', $links ) );
 		$this->scanner()->scan( self::PAGE );
-		$this->assertCount( 1 + 2 * Scanner::MAX_STYLESHEETS, $this->requests );
+		$this->assertCount( 1 + Scanner::MAX_STYLESHEETS, $this->requests );
 	}
 
 	public function test_foreign_policy_header_warns() {

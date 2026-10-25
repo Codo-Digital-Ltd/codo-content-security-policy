@@ -17,8 +17,9 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Scans a URL on this site the way an anonymous visitor sees it (a loopback
- * request), including the stylesheets it loads (for fonts and images such
- * as Google Fonts' fonts.gstatic.com).
+ * request), including the site's own stylesheets. Nothing is ever fetched
+ * from another host: fonts used by well-known font services' stylesheets
+ * (such as Google Fonts' fonts.gstatic.com) are inferred instead.
  */
 class Scanner {
 
@@ -26,6 +27,16 @@ class Scanner {
 	const MAX_HTML_BYTES  = 3145728;
 	const MAX_CSS_BYTES   = 524288;
 	const TIME_BUDGET     = 20;
+
+	/**
+	 * Font hosts used by off-site stylesheet hosts, which are never fetched.
+	 *
+	 * @var array<string, string>
+	 */
+	const KNOWN_FONT_HOSTS = array(
+		'fonts.googleapis.com' => 'https://fonts.gstatic.com/',
+		'fonts.bunny.net'      => 'https://fonts.bunny.net/',
+	);
 
 	/**
 	 * When the current scan must stop fetching (microtime).
@@ -166,7 +177,7 @@ class Scanner {
 					'Cache-Control' => 'no-cache',
 					'Accept'        => 'text/html',
 				),
-				'user-agent'          => 'Codo-CSP-Scanner/' . ( defined( 'CODO_CSP_VERSION' ) ? CODO_CSP_VERSION : '1' ) . '; ' . home_url( '/' ),
+				'user-agent'          => self::user_agent(),
 			)
 		);
 
@@ -227,7 +238,18 @@ class Scanner {
 	}
 
 	/**
-	 * Fetch a stylesheet and list what it loads.
+	 * The scanner's user agent (it identifies the plugin, not the site).
+	 *
+	 * @return string
+	 */
+	private static function user_agent() {
+		return 'Codo-CSP-Scanner/' . ( defined( 'CODO_CSP_VERSION' ) ? CODO_CSP_VERSION : '1' );
+	}
+
+	/**
+	 * List what a stylesheet loads. Only this site's stylesheets are fetched;
+	 * for other hosts nothing is requested, and only the font host of a
+	 * well-known font service is inferred.
 	 *
 	 * @param string $url Stylesheet URL.
 	 * @return array<int, array{directive: string, url: string}>
@@ -237,24 +259,26 @@ class Scanner {
 		if ( null === $parts || ! in_array( $parts['scheme'], array( 'http', 'https' ), true ) ) {
 			return array();
 		}
-		$response = wp_safe_remote_get(
+		if ( ! $this->is_own_url( $url ) ) {
+			$host = strtolower( (string) $parts['host'] );
+			return isset( self::KNOWN_FONT_HOSTS[ $host ] )
+				? array(
+					array(
+						'directive' => 'font-src',
+						'url'       => self::KNOWN_FONT_HOSTS[ $host ],
+					),
+				)
+				: array();
+		}
+		// Same-site loopback: redirects off this site are refused, not followed.
+		$response = $this->loopback(
 			$url,
 			array(
-				'timeout'             => $this->time_left( 5 ),
-				'redirection'         => 2,
+				'timeout'             => 5,
 				'limit_response_size' => self::MAX_CSS_BYTES,
+				'user-agent'          => self::user_agent(),
 			)
 		);
-		if ( $this->is_own_url( $url ) && is_wp_error( $response ) ) {
-			// wp_safe_remote_get refuses private addresses, which a local site may use.
-			$response = $this->loopback(
-				$url,
-				array(
-					'timeout'             => 5,
-					'limit_response_size' => self::MAX_CSS_BYTES,
-				)
-			);
-		}
 		if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
 			return array();
 		}
