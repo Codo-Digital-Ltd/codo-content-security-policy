@@ -16,7 +16,7 @@ A Content Security Policy tells browsers which scripts, styles, fonts, images, f
 
 The hard part is building a policy without breaking the site. Codo Content Security Policy is designed around that.
 
-It is built by [Codo Digital](https://cododigital.co.uk), a UK web development and managed hosting company, and is the policy plugin we use on our own clients' sites. Everything is free. There is no Pro version, no upsell, no account to create and no tracking.
+It is built by [Codo Digital](https://codo.digital), a UK web development and managed hosting company, and is the policy plugin we use on our own clients' sites. Everything is free. There is no Pro version, no upsell, no account to create and no tracking.
 
 = Safe by default =
 

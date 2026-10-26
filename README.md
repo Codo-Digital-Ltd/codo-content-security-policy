@@ -7,7 +7,7 @@
 
 Content-Security-Policy headers for WordPress. The policy starts in Report-Only, and changes that could break an enforced policy are tested in a draft first. Includes built-in violation reports and asset scanning. Free, with no Pro tier, upsells or telemetry.
 
-Built and maintained by [Codo Digital](https://cododigital.co.uk). User-facing documentation is in [`readme.txt`](readme.txt) (the WordPress.org listing).
+Built and maintained by [Codo Digital](https://codo.digital). User-facing documentation is in [`readme.txt`](readme.txt) (the WordPress.org listing).
 
 ## How it works
 
