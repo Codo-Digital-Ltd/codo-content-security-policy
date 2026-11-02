@@ -24,38 +24,38 @@ final class Presets {
 			'google-analytics'   => array(
 				'label' => __( 'Google Analytics 4 (gtag.js)', 'codo-content-security-policy' ),
 				'rules' => array(
-					'script-src'  => array( 'https://www.googletagmanager.com' ),
-					'connect-src' => array( 'https://*.google-analytics.com', 'https://*.analytics.google.com', 'https://*.googletagmanager.com' ),
-					'img-src'     => array( 'https://*.google-analytics.com', 'https://*.googletagmanager.com' ),
+					'script-src'  => array( 'https://www.googletagmanager.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'connect-src' => array( 'https://*.google-analytics.com', 'https://*.analytics.google.com', 'https://*.googletagmanager.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'img-src'     => array( 'https://*.google-analytics.com', 'https://*.googletagmanager.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
 				),
 			),
 			'google-tag-manager' => array(
 				'label' => __( 'Google Tag Manager (tags it loads need their own presets)', 'codo-content-security-policy' ),
 				'rules' => array(
-					'script-src'  => array( 'https://www.googletagmanager.com' ),
-					'img-src'     => array( 'https://www.googletagmanager.com' ),
-					'connect-src' => array( 'https://www.googletagmanager.com' ),
-					'frame-src'   => array( 'https://www.googletagmanager.com' ),
+					'script-src'  => array( 'https://www.googletagmanager.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'img-src'     => array( 'https://www.googletagmanager.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'connect-src' => array( 'https://www.googletagmanager.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'frame-src'   => array( 'https://www.googletagmanager.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
 				),
 			),
 			'google-fonts'       => array(
 				'label' => __( 'Google Fonts', 'codo-content-security-policy' ),
 				'rules' => array(
-					'style-src' => array( 'https://fonts.googleapis.com' ),
-					'font-src'  => array( 'https://fonts.gstatic.com' ),
+					'style-src' => array( 'https://fonts.googleapis.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'font-src'  => array( 'https://fonts.gstatic.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
 				),
 			),
 			'google-maps'        => array(
 				'label' => __( 'Google Maps embeds', 'codo-content-security-policy' ),
 				'rules' => array(
-					'frame-src' => array( 'https://www.google.com', 'https://maps.google.com' ),
+					'frame-src' => array( 'https://www.google.com', 'https://maps.google.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
 				),
 			),
 			'recaptcha'          => array(
 				'label' => __( 'Google reCAPTCHA', 'codo-content-security-policy' ),
 				'rules' => array(
 					'script-src' => array( 'https://www.google.com', 'https://www.gstatic.com', 'https://www.recaptcha.net' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
-					'frame-src'  => array( 'https://www.google.com', 'https://recaptcha.google.com', 'https://www.recaptcha.net' ),
+					'frame-src'  => array( 'https://www.google.com', 'https://recaptcha.google.com', 'https://www.recaptcha.net' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
 				),
 			),
 			'turnstile'          => array(
@@ -68,77 +68,77 @@ final class Presets {
 			'youtube'            => array(
 				'label' => __( 'YouTube embeds', 'codo-content-security-policy' ),
 				'rules' => array(
-					'frame-src' => array( 'https://www.youtube.com', 'https://www.youtube-nocookie.com' ),
-					'img-src'   => array( 'https://i.ytimg.com' ),
+					'frame-src' => array( 'https://www.youtube.com', 'https://www.youtube-nocookie.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'img-src'   => array( 'https://i.ytimg.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
 				),
 			),
 			'vimeo'              => array(
 				'label' => __( 'Vimeo embeds', 'codo-content-security-policy' ),
 				'rules' => array(
-					'frame-src' => array( 'https://player.vimeo.com' ),
-					'img-src'   => array( 'https://i.vimeocdn.com' ),
+					'frame-src' => array( 'https://player.vimeo.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'img-src'   => array( 'https://i.vimeocdn.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
 				),
 			),
 			'stripe'             => array(
 				'label' => __( 'Stripe (Stripe.js and Checkout)', 'codo-content-security-policy' ),
 				'rules' => array(
 					// Address Element autocomplete loads Google Maps.
-					'script-src'  => array( 'https://js.stripe.com', 'https://*.js.stripe.com', 'https://maps.googleapis.com' ),
-					'frame-src'   => array( 'https://js.stripe.com', 'https://*.js.stripe.com', 'https://hooks.stripe.com' ),
-					'connect-src' => array( 'https://api.stripe.com', 'https://maps.googleapis.com' ),
-					'form-action' => array( 'https://checkout.stripe.com' ),
+					'script-src'  => array( 'https://js.stripe.com', 'https://*.js.stripe.com', 'https://maps.googleapis.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'frame-src'   => array( 'https://js.stripe.com', 'https://*.js.stripe.com', 'https://hooks.stripe.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'connect-src' => array( 'https://api.stripe.com', 'https://maps.googleapis.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'form-action' => array( 'https://checkout.stripe.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
 				),
 			),
 			'paypal'             => array(
 				'label' => __( 'PayPal', 'codo-content-security-policy' ),
 				'rules' => array(
-					'script-src'  => array( 'https://www.paypal.com', 'https://*.paypal.com' ),
-					'frame-src'   => array( 'https://www.paypal.com', 'https://*.paypal.com' ),
-					'connect-src' => array( 'https://*.paypal.com' ),
-					'img-src'     => array( 'https://*.paypalobjects.com', 'https://*.paypal.com' ),
-					'form-action' => array( 'https://www.paypal.com', 'https://*.paypal.com' ),
+					'script-src'  => array( 'https://www.paypal.com', 'https://*.paypal.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'frame-src'   => array( 'https://www.paypal.com', 'https://*.paypal.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'connect-src' => array( 'https://*.paypal.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'img-src'     => array( 'https://*.paypalobjects.com', 'https://*.paypal.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'form-action' => array( 'https://www.paypal.com', 'https://*.paypal.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
 				),
 			),
 			'gravatar'           => array(
 				'label' => __( 'Gravatar avatars', 'codo-content-security-policy' ),
 				'rules' => array(
-					'img-src' => array( 'https://secure.gravatar.com', 'https://*.gravatar.com' ),
+					'img-src' => array( 'https://secure.gravatar.com', 'https://*.gravatar.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
 				),
 			),
 			'jetpack'            => array(
 				'label' => __( 'Jetpack / WordPress.com (stats, image CDN)', 'codo-content-security-policy' ),
 				'rules' => array(
-					'script-src'  => array( 'https://stats.wp.com', 'https://*.wp.com' ),
-					'img-src'     => array( 'https://*.wp.com', 'https://pixel.wp.com' ),
-					'connect-src' => array( 'https://*.wp.com' ),
+					'script-src'  => array( 'https://stats.wp.com', 'https://*.wp.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'img-src'     => array( 'https://*.wp.com', 'https://pixel.wp.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'connect-src' => array( 'https://*.wp.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
 				),
 			),
 			'facebook-pixel'     => array(
 				'label' => __( 'Meta (Facebook) Pixel', 'codo-content-security-policy' ),
 				'rules' => array(
-					'script-src'  => array( 'https://connect.facebook.net' ),
-					'img-src'     => array( 'https://www.facebook.com' ),
-					'connect-src' => array( 'https://www.facebook.com', 'https://connect.facebook.net' ),
-					'frame-src'   => array( 'https://www.facebook.com' ),
+					'script-src'  => array( 'https://connect.facebook.net' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'img-src'     => array( 'https://www.facebook.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'connect-src' => array( 'https://www.facebook.com', 'https://connect.facebook.net' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'frame-src'   => array( 'https://www.facebook.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
 				),
 			),
 			'hotjar'             => array(
 				'label' => __( 'Hotjar', 'codo-content-security-policy' ),
 				'rules' => array(
-					'script-src'  => array( 'https://*.hotjar.com' ),
-					'connect-src' => array( 'https://*.hotjar.com', 'https://*.hotjar.io', 'wss://*.hotjar.com' ),
-					'img-src'     => array( 'https://*.hotjar.com' ),
-					'font-src'    => array( 'https://*.hotjar.com' ),
-					'style-src'   => array( 'https://*.hotjar.com' ),
-					'frame-src'   => array( 'https://*.hotjar.com' ),
+					'script-src'  => array( 'https://*.hotjar.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'connect-src' => array( 'https://*.hotjar.com', 'https://*.hotjar.io', 'wss://*.hotjar.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'img-src'     => array( 'https://*.hotjar.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'font-src'    => array( 'https://*.hotjar.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'style-src'   => array( 'https://*.hotjar.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'frame-src'   => array( 'https://*.hotjar.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
 				),
 			),
 			'clarity'            => array(
 				'label' => __( 'Microsoft Clarity', 'codo-content-security-policy' ),
 				'rules' => array(
-					'script-src'  => array( 'https://www.clarity.ms', 'https://*.clarity.ms' ),
-					'connect-src' => array( 'https://*.clarity.ms' ),
-					'img-src'     => array( 'https://*.clarity.ms', 'https://c.bing.com' ),
+					'script-src'  => array( 'https://www.clarity.ms', 'https://*.clarity.ms' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'connect-src' => array( 'https://*.clarity.ms' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
+					'img-src'     => array( 'https://*.clarity.ms', 'https://c.bing.com' ), // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy allows, not an asset this plugin loads.
 				),
 			),
 		);
