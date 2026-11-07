@@ -231,6 +231,7 @@ class Scanner {
 		$result['draft']    = null === $draft ? array() : self::only_new( $this->evaluate( $draft, $resources, $parsed['inline'], $page_origin ), $result['issues'] );
 		$result['checked']  = count( $resources );
 		$result['warnings'] = $this->header_warnings( $response, $context );
+		$result['policies'] = array_merge( array_column( $this->other_policies( $response, $context ), 'value' ), $parsed['policies'] );
 		if ( ! empty( $result['issues'] ) || ! empty( $result['draft'] ) ) {
 			$result['status'] = 'issues';
 		}
@@ -308,7 +309,11 @@ class Scanner {
 				$source = "'self'";
 			}
 			$target = Directives::target( $policy, $resource['directive'] );
-			$key    = $target . ' ' . $source;
+			// The whole host would be refused, so offer just this file.
+			if ( null !== Source::host_problem( $target, $source ) ) {
+				$source = self::strip_query( $resource['url'] );
+			}
+			$key = $target . ' ' . $source;
 			if ( isset( $issues[ $key ] ) ) {
 				++$issues[ $key ]['count'];
 				continue;
@@ -373,22 +378,13 @@ class Scanner {
 	private function header_warnings( $response, $context ) {
 		$ours     = $this->headers->build( $context );
 		$warnings = array();
-		foreach ( array( 'Content-Security-Policy', 'Content-Security-Policy-Report-Only' ) as $name ) {
-			$sent = wp_remote_retrieve_header( $response, strtolower( $name ) );
-			$sent = is_array( $sent ) ? $sent : ( '' === $sent ? array() : array( $sent ) );
-			$mine = isset( $ours[ $name ] ) ? array_map( array( __CLASS__, 'without_reporting' ), $ours[ $name ] ) : array();
-			foreach ( $sent as $value ) {
-				// WordPress core sends its own frame-ancestors policy on wp-login.php.
-				$core_login = 'login' === $context && "frame-ancestors 'self'" === self::without_reporting( (string) $value );
-				if ( ! $core_login && ! in_array( self::without_reporting( (string) $value ), $mine, true ) ) {
-					$warnings[] = sprintf(
-						/* translators: 1: header name, 2: header value. */
-						__( 'A different %1$s header was received: %2$s. It comes from the server, a CDN, another plugin, or a page cache still holding an older policy. Browsers apply every policy they receive.', 'codo-content-security-policy' ),
-						$name,
-						mb_substr( (string) $value, 0, 300 )
-					);
-				}
-			}
+		foreach ( $this->other_policies( $response, $context ) as $policy ) {
+			$warnings[] = sprintf(
+				/* translators: 1: header name, 2: header value. */
+				__( 'A different %1$s header was received: %2$s. It comes from the server, a CDN, another plugin, or a page cache still holding an older policy. Browsers apply every policy they receive.', 'codo-content-security-policy' ),
+				$policy['name'],
+				mb_substr( $policy['value'], 0, 300 )
+			);
 		}
 
 		$size = 0;
@@ -401,6 +397,34 @@ class Scanner {
 			$warnings[] = __( 'The policy headers are over 4 KB. NGINX with default FastCGI buffers can fail with "upstream sent too big header" (502). Remove unused sources or raise fastcgi_buffer_size.', 'codo-content-security-policy' );
 		}
 		return $warnings;
+	}
+
+	/**
+	 * Policy headers on a response that this plugin did not send.
+	 *
+	 * @param array<string, mixed> $response HTTP response.
+	 * @param string               $context  Context.
+	 * @return array<int, array{name: string, value: string}>
+	 */
+	private function other_policies( $response, $context ) {
+		$ours  = $this->headers->build( $context );
+		$other = array();
+		foreach ( array( 'Content-Security-Policy', 'Content-Security-Policy-Report-Only' ) as $name ) {
+			$sent = wp_remote_retrieve_header( $response, strtolower( $name ) );
+			$sent = is_array( $sent ) ? $sent : ( '' === $sent ? array() : array( $sent ) );
+			$mine = isset( $ours[ $name ] ) ? array_map( array( __CLASS__, 'without_reporting' ), $ours[ $name ] ) : array();
+			foreach ( $sent as $value ) {
+				// WordPress core sends its own frame-ancestors policy on wp-login.php.
+				$core_login = 'login' === $context && "frame-ancestors 'self'" === self::without_reporting( (string) $value );
+				if ( ! $core_login && ! in_array( self::without_reporting( (string) $value ), $mine, true ) ) {
+					$other[] = array(
+						'name'  => $name,
+						'value' => (string) $value,
+					);
+				}
+			}
+		}
+		return $other;
 	}
 
 	/**
@@ -437,7 +461,7 @@ class Scanner {
 	 * @param string $context Context.
 	 * @param string $status  ok, issues or error.
 	 * @param string $error   Error message.
-	 * @return array{url: string, context: string, time: int, status: string, error: string, issues: array<int, mixed>, draft: array<int, mixed>, warnings: string[], checked: int}
+	 * @return array{url: string, context: string, time: int, status: string, error: string, issues: array<int, mixed>, draft: array<int, mixed>, warnings: string[], checked: int, policies: string[]}
 	 */
 	private function result( $url, $context, $status, $error = '' ) {
 		return array(
@@ -450,6 +474,7 @@ class Scanner {
 			'draft'    => array(),
 			'warnings' => array(),
 			'checked'  => 0,
+			'policies' => array(),
 		);
 	}
 }

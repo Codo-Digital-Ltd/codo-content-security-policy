@@ -273,6 +273,7 @@ class PolicyView {
 			'default'   => __( 'Default', 'codo-content-security-policy' ),
 			'manual'    => __( 'Added by hand', 'codo-content-security-policy' ),
 			'scan'      => __( 'From a scan', 'codo-content-security-policy' ),
+			'import'    => __( 'Imported from a scan', 'codo-content-security-policy' ),
 			'report'    => __( 'From a report', 'codo-content-security-policy' ),
 			'inherited' => __( 'Inherited (fallback)', 'codo-content-security-policy' ),
 			'network'   => __( 'Network default', 'codo-content-security-policy' ),

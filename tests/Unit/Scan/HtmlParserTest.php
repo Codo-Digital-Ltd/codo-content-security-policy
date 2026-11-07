@@ -315,4 +315,12 @@ CSS;
 		);
 		$this->assertSame( array( 'font-src /f.otf', 'img-src /a.gif' ), $seen );
 	}
+
+	public function test_policy_meta_tags_in_the_head_are_collected() {
+		$result = $this->parse(
+			'<meta http-equiv="Content-Security-Policy" content="img-src https://body.example.net">',
+			'<meta http-equiv="content-security-policy" content="img-src https://head.example.net"><meta http-equiv="refresh" content="0"><meta name="description" content="x">'
+		);
+		$this->assertSame( array( 'img-src https://head.example.net' ), $result['policies'] );
+	}
 }

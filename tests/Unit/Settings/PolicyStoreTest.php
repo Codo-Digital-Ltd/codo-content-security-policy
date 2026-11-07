@@ -560,4 +560,90 @@ class PolicyStoreTest extends TestCase {
 		$this->expectException( InvalidSourceException::class );
 		$store->network_add( 'site', 'script-src', 'https:' );
 	}
+
+	public function test_add_refuses_shared_domains_and_leaves_the_policy_alone() {
+		$store = $this->seeded_for_shared_hosts();
+		$before = $store->live( 'site' )->rules();
+
+		foreach ( array( '*.cloudfront.net', 'https://cloudfront.net', 'https://s3.amazonaws.com' ) as $source ) {
+			try {
+				$store->add( 'site', 'img-src', $source );
+				$this->fail( $source . ' should be refused' );
+			} catch ( \CodoDigital\Csp\Policy\InvalidSourceException $e ) {
+				$this->assertStringContainsString( 'shared by many', $e->getMessage() );
+			}
+		}
+		$this->assertSame( $before, $store->live( 'site' )->rules() );
+	}
+
+	public function test_add_accepts_one_customers_host_on_a_shared_domain() {
+		$store = $this->seeded_for_shared_hosts();
+		$this->assertSame( 'live', $store->add( 'site', 'img-src', 'https://d111.cloudfront.net' )['target'] );
+	}
+
+	public function test_network_add_refuses_shared_domains() {
+		$store = $this->seeded_for_shared_hosts();
+		$this->expectException( \CodoDigital\Csp\Policy\InvalidSourceException::class );
+		$store->network_add( 'site', 'img-src', '*.cloudfront.net' );
+	}
+
+	public function test_a_stored_shared_domain_keeps_working_and_can_be_removed() {
+		$store = $this->seeded_for_shared_hosts();
+		$data  = $this->options[ PolicyStore::OPTION ];
+
+		$data['site']['rules'][]              = array(
+			'd' => 'img-src',
+			's' => '*.cloudfront.net',
+		);
+		$this->options[ PolicyStore::OPTION ] = $data;
+
+		$this->assertSame( 'exists', $store->add( 'site', 'img-src', '*.cloudfront.net' )['target'] );
+		$store->add( 'site', 'img-src', 'https://a.example.net' );
+		$this->assertTrue( $store->live( 'site' )->has( 'img-src', '*.cloudfront.net' ) );
+		$this->assertSame( 'live', $store->remove( 'site', 'img-src', '*.cloudfront.net' ) );
+	}
+
+	public function test_no_preset_uses_a_shared_domain() {
+		foreach ( \CodoDigital\Csp\Policy\Presets::all() as $id => $preset ) {
+			foreach ( $preset['rules'] as $directive => $sources ) {
+				foreach ( (array) $sources as $source ) {
+					$this->assertNull( \CodoDigital\Csp\Policy\Source::host_problem( $directive, $source ), $id . ' ' . $directive . ' ' . $source );
+				}
+			}
+		}
+	}
+
+	/**
+	 * A seeded store on default settings.
+	 *
+	 * @return PolicyStore
+	 */
+	private function seeded_for_shared_hosts() {
+		$store = new PolicyStore( new Settings() );
+		$store->seed();
+		return $store;
+	}
+
+	public function test_add_refuses_a_whole_public_cdn_for_scripts_only() {
+		$store = $this->seeded_for_shared_hosts();
+
+		try {
+			$store->add( 'site', 'script-src', 'https://cdn.jsdelivr.net' );
+			$this->fail( 'should be refused' );
+		} catch ( InvalidSourceException $e ) {
+			$this->assertStringContainsString( 'Anyone can publish', $e->getMessage() );
+		}
+		$this->assertFalse( $store->live( 'site' )->has( 'script-src', 'https://cdn.jsdelivr.net' ) );
+
+		$store->add( 'site', 'script-src', 'https://cdn.jsdelivr.net/npm/lib@1.2.3/' );
+		$store->add( 'site', 'img-src', 'https://cdn.jsdelivr.net' );
+		$this->assertTrue( $store->live( 'site' )->has( 'script-src', 'https://cdn.jsdelivr.net/npm/lib@1.2.3/' ) );
+		$this->assertTrue( $store->live( 'site' )->has( 'img-src', 'https://cdn.jsdelivr.net' ) );
+	}
+
+	public function test_network_add_refuses_a_whole_public_cdn_for_scripts() {
+		$store = $this->seeded_for_shared_hosts();
+		$this->expectException( InvalidSourceException::class );
+		$store->network_add( 'site', 'script-src', 'https://unpkg.com' );
+	}
 }
