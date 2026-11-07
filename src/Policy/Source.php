@@ -43,7 +43,7 @@ final class Source {
 	const SHARED_DOMAINS = array(
 		'akamaihd.net',
 		'akamaized.net',
-		'amazonaws.com',
+		'amazonaws.com', // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy refuses, not an asset this plugin loads.
 		'amplifyapp.com',
 		'appspot.com',
 		'azureedge.net',
@@ -63,8 +63,8 @@ final class Source {
 		'github.io',
 		'gitlab.io',
 		'googleapis.com',
-		'googleusercontent.com',
-		'herokuapp.com',
+		'googleusercontent.com', // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy refuses, not an asset this plugin loads.
+		'herokuapp.com', // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy refuses, not an asset this plugin loads.
 		'kxcdn.com',
 		'myshopify.com',
 		'netlify.app',
@@ -75,11 +75,11 @@ final class Source {
 		'r2.dev',
 		'railway.app',
 		'run.app',
-		's3.amazonaws.com',
+		's3.amazonaws.com', // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy refuses, not an asset this plugin loads.
 		'stackpathcdn.com',
 		'storage.googleapis.com',
 		'surge.sh',
-		'trycloudflare.com',
+		'trycloudflare.com', // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy refuses, not an asset this plugin loads.
 		'vercel.app',
 		'web.app',
 		'wixsite.com',
@@ -92,14 +92,14 @@ final class Source {
 	 * for scripts lets an attacker load code they published there.
 	 */
 	const OPEN_HOSTS = array(
-		'ajax.googleapis.com',
-		'cdn.jsdelivr.net',
-		'cdn.rawgit.com',
+		'ajax.googleapis.com', // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy refuses, not an asset this plugin loads.
+		'cdn.jsdelivr.net', // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy refuses, not an asset this plugin loads.
+		'cdn.rawgit.com', // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy refuses, not an asset this plugin loads.
 		'cdn.skypack.dev',
-		'cdnjs.cloudflare.com',
+		'cdnjs.cloudflare.com', // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy refuses, not an asset this plugin loads.
 		'esm.sh',
 		'gist.githubusercontent.com',
-		'raw.githubusercontent.com',
+		'raw.githubusercontent.com', // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy refuses, not an asset this plugin loads.
 		'rawcdn.githack.com',
 		'unpkg.com',
 	);
