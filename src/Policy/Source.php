@@ -101,7 +101,7 @@ final class Source {
 		'gist.githubusercontent.com',
 		'raw.githubusercontent.com', // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy refuses, not an asset this plugin loads.
 		'rawcdn.githack.com',
-		'unpkg.com',
+		'unpkg.com', // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- A host the policy refuses, not an asset this plugin loads.
 	);
 
 	/**
