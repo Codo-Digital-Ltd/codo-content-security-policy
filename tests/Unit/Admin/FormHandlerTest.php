@@ -111,6 +111,7 @@ class FormHandlerTest extends AdminTestCase {
 	public function test_every_handler_checks_its_own_nonce( $action ) {
 		$this->reports->shouldIgnoreMissing();
 		$this->scheduler->shouldReceive( 'forget' )->zeroOrMoreTimes();
+		$this->scheduler->shouldReceive( 'url_scans' )->zeroOrMoreTimes()->andReturn( array() );
 		$_POST = array(
 			'op'        => 'forget',
 			'directive' => 'img-src',
@@ -1243,5 +1244,165 @@ class FormHandlerTest extends AdminTestCase {
 		$this->handler()->handle_scan();
 
 		$this->assertSame( 'All 0 resources found are allowed.', $this->notice()['message'] );
+	}
+
+	/**
+	 * Post an import of a scan that found the given policies.
+	 *
+	 * @param string[] $policies Policies found.
+	 * @param mixed    $rules    Posted rules.
+	 * @param string   $context  Context of the scan.
+	 * @return void
+	 */
+	private function import( array $policies, $rules, $context = 'site' ) {
+		$url = 'https://www.example.com/page/';
+		$this->scheduler->shouldReceive( 'url_scans' )->andReturn(
+			array(
+				$url => array(
+					'url'      => $url,
+					'context'  => $context,
+					'policies' => $policies,
+				),
+			)
+		);
+		$_POST = array(
+			'url'   => $url,
+			'rules' => $rules,
+		);
+		$this->handler()->handle_import();
+	}
+
+	public function test_import_adds_ticked_rules_and_keeps_existing_ones() {
+		$before = $this->store->live( 'site' )->rules();
+
+		$this->import(
+			array( 'img-src https://a.example.net https://b.example.net' ),
+			array( 'img-src https://a.example.net' )
+		);
+
+		$after = $this->store->live( 'site' );
+		$this->assertTrue( $after->has( 'img-src', 'https://a.example.net' ) );
+		$this->assertFalse( $after->has( 'img-src', 'https://b.example.net' ), 'unticked' );
+		foreach ( $before as $rule ) {
+			$this->assertTrue( $after->has( $rule['d'], $rule['s'] ), $rule['d'] . ' ' . $rule['s'] );
+		}
+		$this->assertCount( count( $before ) + 1, $after->rules(), 'no duplicates' );
+		$rules = $after->rules();
+		$this->assertSame( 'import', end( $rules )['o'] );
+		$this->assertStringContainsString( 'Import finished: 1 rules added to the live policy, 0 to the draft, 0 refused', $this->queued()[0]['message'] );
+		$this->assertStringContainsString( 'tab=scan', (string) $this->redirected_to );
+		$this->assertSame( array( 'codo_csp_import' ), $this->nonces );
+	}
+
+	public function test_import_cannot_be_forced_to_add_refused_or_unlisted_rules() {
+		$before = $this->store->live( 'site' )->rules();
+
+		$this->import(
+			array( 'img-src *.cloudfront.net; frame-ancestors *' ),
+			array( 'img-src *.cloudfront.net', 'frame-ancestors *', 'script-src https://evil.example', array( 'nested' ) )
+		);
+
+		$this->assertSame( $before, $this->store->live( 'site' )->rules() );
+		$this->assertStringContainsString( '0 rules added to the live policy, 0 to the draft, 2 refused', $this->queued()[0]['message'] );
+	}
+
+	public function test_import_never_opens_a_none_directive() {
+		$this->import( array( "object-src 'self'" ), array( "object-src 'self'" ) );
+
+		$this->assertSame( array( "'none'" ), $this->store->live( 'site' )->sources( 'object-src' ) );
+	}
+
+	public function test_import_adds_a_risky_rule_only_when_ticked_and_reviews_it_afterwards() {
+		$this->import( array( "script-src 'unsafe-eval'" ), array( "script-src 'unsafe-eval'" ) );
+
+		$this->assertTrue( $this->store->live( 'site' )->has( 'script-src', "'unsafe-eval'" ) );
+		$messages = implode( "\n", array_column( $this->queued(), 'message' ) );
+		$this->assertStringContainsString( "Policy review: script-src 'unsafe-eval':", $messages );
+	}
+
+	public function test_import_that_would_tighten_an_enforced_policy_goes_to_the_draft() {
+		$this->enforce();
+		$hash = "'sha256-" . str_repeat( 'a', 43 ) . "='";
+
+		$this->import( array( 'script-src ' . $hash ), array( 'script-src ' . $hash ) );
+
+		$this->assertFalse( $this->store->live( 'site' )->has( 'script-src', $hash ) );
+		$this->assertTrue( $this->store->draft( 'site' )->has( 'script-src', $hash ) );
+		$this->assertStringContainsString( '0 rules added to the live policy, 1 to the draft', $this->queued()[0]['message'] );
+	}
+
+	public function test_import_uses_the_context_of_the_scan() {
+		$this->import( array( 'img-src https://a.example.net' ), array( 'img-src https://a.example.net' ), 'login' );
+
+		$this->assertTrue( $this->store->live( 'login' )->has( 'img-src', 'https://a.example.net' ) );
+		$this->assertFalse( $this->store->live( 'site' )->has( 'img-src', 'https://a.example.net' ) );
+	}
+
+	public function test_import_of_a_forgotten_scan_changes_nothing() {
+		$before = $this->store->live( 'site' )->rules();
+		$this->scheduler->shouldReceive( 'url_scans' )->andReturn( array() );
+		$_POST = array(
+			'url'   => 'https://www.example.com/gone/',
+			'rules' => array( 'img-src https://a.example.net' ),
+		);
+
+		$this->handler()->handle_import();
+
+		$this->assertSame( 'error', $this->notice()['type'] );
+		$this->assertSame( $before, $this->store->live( 'site' )->rules() );
+	}
+
+	public function test_scan_offers_import_when_other_rules_can_be_added() {
+		$this->scheduler->shouldReceive( 'scan_url' )->once()->andReturn(
+			array(
+				'status'   => 'ok',
+				'checked'  => 0,
+				'context'  => 'site',
+				'policies' => array( 'img-src https://a.example.net' ),
+			)
+		);
+		$_POST = array(
+			'op'  => 'url',
+			'url' => 'https://www.example.com/',
+		);
+
+		$this->handler()->handle_scan();
+
+		$this->assertStringContainsString( 'review and import', $this->queued()[1]['message'] );
+	}
+
+	public function test_scan_does_not_offer_import_when_nothing_can_be_added() {
+		$this->scheduler->shouldReceive( 'scan_url' )->once()->andReturn(
+			array(
+				'status'   => 'ok',
+				'checked'  => 0,
+				'context'  => 'site',
+				'policies' => array( "img-src 'self'" ),
+			)
+		);
+		$_POST = array(
+			'op'  => 'url',
+			'url' => 'https://www.example.com/',
+		);
+
+		$this->handler()->handle_scan();
+
+		$this->assertCount( 1, $this->queued() );
+	}
+
+	public function test_add_rule_refuses_a_shared_domain_with_a_notice() {
+		$before = $this->store->live( 'site' )->rules();
+		$_POST  = array(
+			'context'   => 'site',
+			'directive' => 'img-src',
+			'source'    => '*.cloudfront.net',
+		);
+
+		$this->handler()->handle_add_rule();
+
+		$notice = $this->notice();
+		$this->assertSame( 'error', $notice['type'] );
+		$this->assertStringContainsString( 'cloudfront.net is shared', $notice['message'] );
+		$this->assertSame( $before, $this->store->live( 'site' )->rules() );
 	}
 }

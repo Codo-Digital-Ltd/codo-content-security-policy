@@ -3,7 +3,7 @@
  * Plugin Name:       Codo Content Security Policy
  * Plugin URI:        https://github.com/Codo-Digital-Ltd/codo-content-security-policy
  * Description:       Content-Security-Policy headers for the front end and login page. Starts in Report-Only, with a draft policy for safe changes, built-in violation reports and asset scanning. Free, no upsells.
- * Version:           1.0.0
+ * Version:           1.1.0
  * Requires at least: 6.2
  * Requires PHP:      7.4
  * Author:            Codo Digital
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'CODO_CSP_VERSION', '1.0.0' );
+define( 'CODO_CSP_VERSION', '1.1.0' );
 define( 'CODO_CSP_FILE', __FILE__ );
 define( 'CODO_CSP_DIR', __DIR__ );
 

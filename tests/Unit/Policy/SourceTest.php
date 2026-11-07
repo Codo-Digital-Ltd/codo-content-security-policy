@@ -277,4 +277,79 @@ class SourceTest extends TestCase {
 		$this->assertSame( 'gopher://a.com:70', Source::origin_of( 'gopher://a.com:70/' ) );
 		$this->assertNull( Source::origin_of( 'nonsense' ) );
 	}
+
+	/**
+	 * @return array<string, array{0: string, 1: bool}>
+	 */
+	public function shared_hosts() {
+		return array(
+			'wildcard'              => array( '*.cloudfront.net', true ),
+			'wildcard with scheme'  => array( 'https://*.cloudfront.net', true ),
+			'wildcard with port'    => array( 'https://*.cloudfront.net:8443', true ),
+			'bare domain'           => array( 'cloudfront.net', true ),
+			'bare with scheme'      => array( 'https://cloudfront.net', true ),
+			'wildcard below shared' => array( '*.eu.amazonaws.com', true ),
+			'every bucket'          => array( 'https://s3.amazonaws.com', true ),
+			'whole tld'             => array( '*.com', true ),
+			'whole country suffix'  => array( 'https://*.co.uk', true ),
+			'own distribution'      => array( 'https://d111.cloudfront.net', false ),
+			'own bucket by host'    => array( 'https://site.s3.amazonaws.com', false ),
+			'own bucket by path'    => array( 'https://s3.amazonaws.com/site/', false ),
+			'lookalike'             => array( '*.notcloudfront.net', false ),
+			'ordinary wildcard'     => array( 'https://*.example.com', false ),
+			'keyword'               => array( "'self'", false ),
+			'scheme'                => array( 'data:', false ),
+			'any host'              => array( '*', false ),
+		);
+	}
+
+	/**
+	 * @dataProvider shared_hosts
+	 *
+	 * @param string $source  Source.
+	 * @param bool   $problem Whether it is too shared.
+	 */
+	public function test_shared_host_problem( $source, $problem ) {
+		$this->assertSame( $problem, null !== Source::shared_host_problem( $source ) );
+	}
+
+	public function test_warning_flags_stored_shared_hosts() {
+		$this->assertStringContainsString( 'cloudfront.net is shared', Source::warning( 'img-src', '*.cloudfront.net' ) );
+		$this->assertSame( '', Source::warning( 'img-src', 'https://d111.cloudfront.net' ) );
+	}
+
+	/**
+	 * @return array<string, array{0: string, 1: string, 2: bool}>
+	 */
+	public function open_hosts() {
+		return array(
+			'whole cdn for scripts'  => array( 'script-src', 'https://cdn.jsdelivr.net', true ),
+			'bare host'              => array( 'script-src-elem', 'cdn.jsdelivr.net', true ),
+			'with a port'            => array( 'script-src', 'https://unpkg.com:443', true ),
+			'default-src'            => array( 'default-src', 'https://cdnjs.cloudflare.com', true ),
+			'workers'                => array( 'worker-src', 'https://esm.sh', true ),
+			'worker fallback'        => array( 'child-src', 'https://esm.sh', true ),
+			'one package'            => array( 'script-src', 'https://cdn.jsdelivr.net/npm/lib@1.2.3/', false ),
+			'images'                 => array( 'img-src', 'https://cdn.jsdelivr.net', false ),
+			'styles'                 => array( 'style-src', 'https://cdn.jsdelivr.net', false ),
+			'another host'           => array( 'script-src', 'https://cdn.example.com', false ),
+			'shared in any directive' => array( 'img-src', '*.cloudfront.net', true ),
+		);
+	}
+
+	/**
+	 * @dataProvider open_hosts
+	 *
+	 * @param string $directive Directive.
+	 * @param string $source    Source.
+	 * @param bool   $problem   Whether it is refused.
+	 */
+	public function test_host_problem( $directive, $source, $problem ) {
+		$this->assertSame( $problem, null !== Source::host_problem( $directive, $source ) );
+	}
+
+	public function test_warning_flags_stored_public_cdns_for_code_only() {
+		$this->assertStringContainsString( 'Anyone can publish', Source::warning( 'script-src', 'https://unpkg.com' ) );
+		$this->assertSame( '', Source::warning( 'img-src', 'https://unpkg.com' ) );
+	}
 }

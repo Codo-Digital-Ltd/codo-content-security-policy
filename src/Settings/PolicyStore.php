@@ -199,7 +199,7 @@ class PolicyStore {
 	 * @param string $context   Context.
 	 * @param string $directive Directive.
 	 * @param string $raw       Source as entered.
-	 * @param string $origin    Where the rule came from (manual, preset:x, report, scan).
+	 * @param string $origin    Where the rule came from (manual, preset:x, report, scan, import).
 	 * @param string $note      Note.
 	 * @return array{source: string, target: string, inherited: string[]} target is live, draft or exists.
 	 * @throws InvalidSourceException When the source is invalid.
@@ -218,6 +218,8 @@ class PolicyStore {
 				'inherited' => array(),
 			);
 		}
+
+		self::refuse_host( $directive, $source );
 
 		if ( "'none'" === $source && count( array_diff( (array) self::compose( $network, $base )->sources( $directive ), array( "'none'" ) ) ) > 0 ) {
 			throw new InvalidSourceException( esc_html__( '\'none\' only works on its own. Remove the other sources from this directive instead.', 'codo-content-security-policy' ) );
@@ -492,6 +494,7 @@ class PolicyStore {
 		if ( "'none'" === $source || Source::cancels_unsafe_inline( $source ) ) {
 			throw new InvalidSourceException( esc_html__( '\'none\', hashes and \'strict-dynamic\' restrict a policy rather than add to it, so they cannot be network defaults. Add them on each site, where they are tested in a draft first.', 'codo-content-security-policy' ) );
 		}
+		self::refuse_host( $directive, $source );
 		$rules = $this->network( $context )->with(
 			array(
 				'd' => $directive,
@@ -575,6 +578,25 @@ class PolicyStore {
 		 * @param string $scope   site or network.
 		 */
 		do_action( 'codo_csp_policy_changed', $context, 'site' );
+	}
+
+	/**
+	 * Stop a new rule that would allow a shared domain's strangers, or anyone
+	 * publishing on a public CDN to run code. This sits
+	 * here, not in Source::normalise, so rules already stored keep working:
+	 * they are flagged on the policy screen, and removing them stays the
+	 * administrator's decision.
+	 *
+	 * @param string $directive Directive.
+	 * @param string $source    Normalised source.
+	 * @return void
+	 * @throws InvalidSourceException When the source is too open.
+	 */
+	private static function refuse_host( $directive, $source ) {
+		$problem = Source::host_problem( $directive, $source );
+		if ( null !== $problem ) {
+			throw new InvalidSourceException( esc_html( $problem ) );
+		}
 	}
 
 	/**

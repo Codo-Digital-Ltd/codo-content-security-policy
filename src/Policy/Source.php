@@ -36,6 +36,80 @@ final class Source {
 	const UNSAFE_SCRIPT_SOURCES = array( '*', 'http:', 'https:', 'data:', 'blob:', 'filesystem:', 'javascript:' );
 
 	/**
+	 * Domains whose subdomains or paths belong to many unrelated customers:
+	 * anyone can sign up and serve their own files from them. A wildcard over
+	 * one, or the bare domain, allows those strangers too.
+	 */
+	const SHARED_DOMAINS = array(
+		'akamaihd.net',
+		'akamaized.net',
+		'amazonaws.com',
+		'amplifyapp.com',
+		'appspot.com',
+		'azureedge.net',
+		'azurefd.net',
+		'azurewebsites.net',
+		'b-cdn.net',
+		'blob.core.windows.net',
+		'cloudflare-ipfs.com',
+		'cloudflarestorage.com',
+		'cloudfront.net',
+		'edgekey.net',
+		'edgesuite.net',
+		'fastly.net',
+		'fastlylb.net',
+		'firebaseapp.com',
+		'fly.dev',
+		'github.io',
+		'gitlab.io',
+		'googleapis.com',
+		'googleusercontent.com',
+		'herokuapp.com',
+		'kxcdn.com',
+		'myshopify.com',
+		'netlify.app',
+		'ngrok-free.app',
+		'ngrok.io',
+		'onrender.com',
+		'pages.dev',
+		'r2.dev',
+		'railway.app',
+		'run.app',
+		's3.amazonaws.com',
+		'stackpathcdn.com',
+		'storage.googleapis.com',
+		'surge.sh',
+		'trycloudflare.com',
+		'vercel.app',
+		'web.app',
+		'wixsite.com',
+		'workers.dev',
+		'wpengine.com',
+	);
+
+	/**
+	 * Public hosts that serve anybody's files by path, so allowing one whole
+	 * for scripts lets an attacker load code they published there.
+	 */
+	const OPEN_HOSTS = array(
+		'ajax.googleapis.com',
+		'cdn.jsdelivr.net',
+		'cdn.rawgit.com',
+		'cdn.skypack.dev',
+		'cdnjs.cloudflare.com',
+		'esm.sh',
+		'gist.githubusercontent.com',
+		'raw.githubusercontent.com',
+		'rawcdn.githack.com',
+		'unpkg.com',
+	);
+
+	/**
+	 * Directives that decide where code runs from.
+	 */
+	const CODE_DIRECTIVES = array( 'default-src', 'script-src', 'script-src-elem', 'script-src-attr', 'object-src', 'worker-src', 'base-uri' );
+
+	/**
 	 * Default ports, for matching.
 	 */
 	const DEFAULT_PORTS = array(
@@ -124,8 +198,7 @@ final class Source {
 	 * @return bool
 	 */
 	private static function is_too_broad( $directive, $source ) {
-		$code = array( 'default-src', 'script-src', 'script-src-elem', 'script-src-attr', 'object-src', 'worker-src', 'base-uri' );
-		if ( ! in_array( $directive, $code, true ) ) {
+		if ( ! in_array( $directive, self::CODE_DIRECTIVES, true ) ) {
 			return false;
 		}
 		if ( 'worker-src' === $directive && 'blob:' === $source ) {
@@ -136,6 +209,58 @@ final class Source {
 		}
 		// Host part "*": https://*, *:*, http://*:8080/path.
 		return 1 === preg_match( '~^(?:[a-z][a-z0-9+.\-]*://)?\*(?::|/|$)~', $source );
+	}
+
+	/**
+	 * Why a source would allow strangers' content on a shared domain: a
+	 * wildcard over a domain ending (*.com) or a shared domain, or a shared
+	 * domain with no path. One customer's own host, such as
+	 * d111.cloudfront.net, is fine.
+	 *
+	 * @param string $source Normalised source.
+	 * @return string|null Null when there is no such problem.
+	 */
+	public static function shared_host_problem( $source ) {
+		if ( ! preg_match( '~^(?:[a-z][a-z0-9+.\-]*://)?([^:/\']+)(?::(?:\d+|\*))?(/.*)?$~', $source, $m ) ) {
+			return null;
+		}
+		$wildcard = 0 === strpos( $m[1], '*.' );
+		$base     = $wildcard ? substr( $m[1], 2 ) : $m[1];
+		$path     = isset( $m[2] ) ? $m[2] : '';
+
+		if ( $wildcard && ( false === strpos( $base, '.' ) || preg_match( '/^(?:ac|co|com|edu|gov|net|org)\.[a-z]{2}$/', $base ) ) ) {
+			/* translators: %s: domain ending such as com or co.uk. */
+			return sprintf( __( 'This allows every website ending in .%s.', 'codo-content-security-policy' ), $base );
+		}
+		foreach ( self::SHARED_DOMAINS as $shared ) {
+			$under = $base === $shared || substr( $base, -strlen( $shared ) - 1 ) === '.' . $shared;
+			if ( ( $wildcard && $under ) || ( $base === $shared && '' === $path ) ) {
+				/* translators: %s: shared domain such as cloudfront.net. */
+				return sprintf( __( '%s is shared by many unrelated customers, and this would allow all of them. Allow only your own host or path instead.', 'codo-content-security-policy' ), $shared );
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Why a new rule must not name this host in this directive: it is too
+	 * shared anywhere, or (for code) a whole public CDN. child-src counts for
+	 * code because workers fall back to it.
+	 *
+	 * @param string $directive Directive.
+	 * @param string $source    Normalised source.
+	 * @return string|null Null when there is no such problem.
+	 */
+	public static function host_problem( $directive, $source ) {
+		$shared = self::shared_host_problem( $source );
+		if ( null !== $shared ) {
+			return $shared;
+		}
+		$code = 'child-src' === $directive || in_array( $directive, self::CODE_DIRECTIVES, true );
+		if ( $code && preg_match( '~^(?:[a-z][a-z0-9+.\-]*://)?([^:/\']+)(?::(?:\d+|\*))?$~', $source, $m ) && in_array( $m[1], self::OPEN_HOSTS, true ) ) {
+			return __( 'Anyone can publish files on this host, so an attacker could load their own code from it. Allow only the path you use, such as one package and version.', 'codo-content-security-policy' );
+		}
+		return null;
 	}
 
 	/**
@@ -270,7 +395,8 @@ final class Source {
 		if ( in_array( $source, array( '*', 'https:', 'http:' ), true ) ) {
 			return __( 'Allows any host.', 'codo-content-security-policy' );
 		}
-		return '';
+		$problem = self::host_problem( $directive, $source );
+		return null !== $problem ? $problem : '';
 	}
 
 	/**

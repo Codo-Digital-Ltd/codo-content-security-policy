@@ -8,8 +8,10 @@
 namespace CodoDigital\Csp\Admin;
 
 use CodoDigital\Csp\Policy\Directives;
+use CodoDigital\Csp\Policy\ImportReview;
 use CodoDigital\Csp\Policy\InvalidSourceException;
 use CodoDigital\Csp\Policy\Presets;
+use CodoDigital\Csp\Policy\Source;
 use CodoDigital\Csp\Reports\ReportRepository;
 use CodoDigital\Csp\Scan\ScanScheduler;
 use CodoDigital\Csp\Settings\PolicyStore;
@@ -23,7 +25,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class FormHandler {
 
-	const ACTIONS = array( 'add_rule', 'remove_rule', 'preset', 'draft', 'mode', 'settings', 'reporting', 'clear_reports', 'allow_report', 'scan' );
+	const ACTIONS = array( 'add_rule', 'remove_rule', 'preset', 'draft', 'mode', 'settings', 'reporting', 'clear_reports', 'allow_report', 'scan', 'import' );
 
 	/**
 	 * Settings.
@@ -595,6 +597,74 @@ class FormHandler {
 		} else {
 			/* translators: %d: number of resources. */
 			$this->notices->add( 'success', sprintf( __( 'All %d resources found are allowed.', 'codo-content-security-policy' ), (int) $result['checked'] ) );
+		}
+		if ( ! empty( $result['policies'] ) && ImportReview::pending( ImportReview::review( $result['policies'], $this->store->live( $result['context'] ), (string) Source::origin_of( $url ) ) ) > 0 ) {
+			$this->notices->add( 'info', __( 'This page has CSP rules from outside this plugin. You can review and import them below.', 'codo-content-security-policy' ) );
+		}
+		$this->back( 'site', 'scan' );
+	}
+
+	/**
+	 * Import ticked rules from a scanned page's other policies. The review
+	 * runs again here, on what the scan stored, so only rules it still passes
+	 * can be added, whatever was posted. Existing rules are never removed.
+	 *
+	 * @return void
+	 */
+	public function handle_import() {
+		$this->guard( 'import' );
+
+		$url   = esc_url_raw( $this->field( 'url' ) );
+		$scans = $this->scheduler->url_scans();
+		if ( ! isset( $scans[ $url ] ) ) {
+			$this->notices->add( 'error', __( 'That scan is no longer available. Scan the page again.', 'codo-content-security-policy' ) );
+			$this->back( 'site', 'scan' );
+			return;
+		}
+
+		$context = 'login' === $scans[ $url ]['context'] ? 'login' : 'site';
+		$origin  = (string) Source::origin_of( $url );
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Verified in guard(); only used to look up reviewed rows.
+		$posted   = isset( $_POST['rules'] ) && is_array( $_POST['rules'] ) ? wp_unslash( $_POST['rules'] ) : array();
+		$selected = array_flip( array_filter( $posted, 'is_string' ) );
+		$policies = isset( $scans[ $url ]['policies'] ) ? (array) $scans[ $url ]['policies'] : array();
+		$rows     = ImportReview::review( $policies, $this->store->live( $context ), $origin );
+		$counts   = array(
+			'live'  => 0,
+			'draft' => 0,
+		);
+		$refused  = 0;
+
+		foreach ( $rows as $row ) {
+			$refused += ImportReview::REFUSE === $row['verdict'] ? 1 : 0;
+			if ( ! isset( $selected[ ImportReview::key( $row ) ] ) || ! in_array( $row['verdict'], array( ImportReview::ADD, ImportReview::CONFIRM ), true ) ) {
+				continue;
+			}
+			try {
+				$added = $this->store->add( $context, $row['directive'], $row['source'], 'import' );
+				if ( isset( $counts[ $added['target'] ] ) ) {
+					++$counts[ $added['target'] ];
+				}
+			} catch ( InvalidSourceException $e ) {
+				$this->notices->add( 'error', $row['directive'] . ' ' . $row['source'] . ': ' . $e->getMessage() );
+			}
+		}
+
+		$this->notices->add(
+			'success',
+			sprintf(
+				/* translators: 1: rules added, 2: rules added to the draft, 3: rules refused as unsafe. */
+				__( 'Import finished: %1$d rules added to the live policy, %2$d to the draft, %3$d refused as unsafe. No existing rules were removed.', 'codo-content-security-policy' ),
+				$counts['live'],
+				$counts['draft'],
+				$refused
+			)
+		);
+
+		$draft = $this->store->draft( $context );
+		foreach ( ImportReview::audit( null !== $draft ? $draft : $this->store->live( $context ), $origin ) as $finding ) {
+			/* translators: %s: a rule and what is wrong with it. */
+			$this->notices->add( 'warning', sprintf( __( 'Policy review: %s', 'codo-content-security-policy' ), $finding ) );
 		}
 		$this->back( 'site', 'scan' );
 	}

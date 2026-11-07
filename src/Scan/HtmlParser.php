@@ -30,7 +30,7 @@ class HtmlParser {
 	 *
 	 * @param string $html     HTML.
 	 * @param string $page_url URL of the page (base for relative URLs).
-	 * @return array{resources: array<int, array{directive: string, url: string}>, inline: array<string, int>, stylesheets: string[]}
+	 * @return array{resources: array<int, array{directive: string, url: string}>, inline: array<string, int>, stylesheets: string[], policies: string[]}
 	 */
 	public function parse_html( $html, $page_url ) {
 		$result = array(
@@ -42,6 +42,7 @@ class HtmlParser {
 				'style-src-attr'  => 0,
 			),
 			'stylesheets' => array(),
+			'policies'    => array(),
 		);
 		if ( '' === trim( (string) $html ) ) {
 			return $result;
@@ -103,6 +104,13 @@ class HtmlParser {
 
 				case 'link':
 					$this->link( $element, $add, $result );
+					break;
+
+				case 'meta':
+					// Browsers only apply a policy meta tag in the head.
+					if ( 'content-security-policy' === strtolower( trim( $element->getAttribute( 'http-equiv' ) ) ) && 'head' === strtolower( $element->parentNode->nodeName ) ) {
+						$result['policies'][] = $element->getAttribute( 'content' );
+					}
 					break;
 
 				case 'style':

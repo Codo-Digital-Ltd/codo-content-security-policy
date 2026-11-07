@@ -847,4 +847,41 @@ class AdminPageTest extends AdminTestCase {
 		$this->assertStringNotContainsString( 'type="hidden" name="login_enabled"', $html );
 		$this->assertStringContainsString( '<fieldset>', $html );
 	}
+
+	public function test_scan_result_offers_import_with_safe_rules_ticked_and_risky_unticked() {
+		ob_start();
+		$this->page()->render_scan_result(
+			self::scan( array( 'policies' => array( "img-src https://d111.cloudfront.net *.cloudfront.net *.partner.example; object-src 'self'; font-src 'self'" ) ) ),
+			'Label',
+			true
+		);
+		$html = ob_get_clean();
+
+		$this->assertStringContainsString( '<details class="codo-csp-scan" open>', $html );
+		$this->assertStringContainsString( 'name="action" value="codo_csp_import"', $html );
+		$this->assertStringContainsString( 'name="rules[]" value="img-src https://d111.cloudfront.net" checked>', $html );
+		$this->assertStringContainsString( 'name="rules[]" value="img-src *.partner.example">', $html );
+		// Refused and redundant rules are explained but cannot be posted.
+		$this->assertStringContainsString( '<code>img-src *.cloudfront.net</code>', $html );
+		$this->assertStringNotContainsString( 'value="img-src *.cloudfront.net"', $html );
+		$this->assertStringNotContainsString( 'value="object-src &#039;self&#039;"', $html );
+		$this->assertStringContainsString( '<code>font-src &#039;self&#039;</code>', $html );
+		$this->assertStringContainsString( 'Import ticked rules', $html );
+	}
+
+	public function test_scan_result_has_no_import_button_when_nothing_can_be_imported() {
+		ob_start();
+		$this->page()->render_scan_result( self::scan( array( 'policies' => array( 'img-src *.cloudfront.net' ) ) ), 'Label', true );
+		$html = ob_get_clean();
+
+		$this->assertStringContainsString( 'img-src *.cloudfront.net', $html );
+		$this->assertStringNotContainsString( 'Import ticked rules', $html );
+		$this->assertStringContainsString( '<details class="codo-csp-scan">', $html );
+	}
+
+	public function test_import_is_only_offered_on_the_recent_scans_list() {
+		ob_start();
+		$this->page()->render_scan_result( self::scan( array( 'policies' => array( 'img-src https://a.example.net' ) ) ), 'Label', false );
+		$this->assertStringNotContainsString( 'codo_csp_import', ob_get_clean() );
+	}
 }

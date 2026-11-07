@@ -731,4 +731,59 @@ class ScannerTest extends TestCase {
 			$issues
 		);
 	}
+
+	public function test_other_policies_are_kept_for_import() {
+		$url                  = 'https://www.example.com/about/';
+		$this->remote[ $url ] = self::response(
+			'<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="font-src https://meta.example.net"></head><body></body></html>',
+			200,
+			array(
+				'content-type'                        => 'text/html',
+				'content-security-policy'             => array( 'img-src https://a.example.net', 'img-src https://b.example.net' ),
+				'content-security-policy-report-only' => 'script-src https://c.example.net',
+			)
+		);
+
+		$this->assertSame(
+			array( 'img-src https://a.example.net', 'img-src https://b.example.net', 'script-src https://c.example.net', 'font-src https://meta.example.net' ),
+			$this->scanner()->scan( $url )['policies']
+		);
+	}
+
+	public function test_this_plugins_own_policy_is_not_offered_for_import() {
+		$url  = 'https://www.example.com/about/';
+		$ours = $this->sender->build( 'site' );
+		$name = key( $ours );
+
+		$this->remote[ $url ] = self::response(
+			'<!doctype html><html><head></head><body></body></html>',
+			200,
+			array(
+				'content-type'     => 'text/html',
+				strtolower( $name ) => $ours[ $name ],
+			)
+		);
+
+		$this->assertSame( array(), $this->scanner()->scan( $url )['policies'] );
+	}
+
+	public function test_allow_offers_the_exact_file_when_the_whole_host_would_be_refused() {
+		$url                  = 'https://www.example.com/about/';
+		$this->remote[ $url ] = self::response(
+			self::html(
+				'<img src="https://unpkg.com/lib@1/logo.png">',
+				'<script src="https://cdn.jsdelivr.net/npm/lib@1/x.js?v=2"></script><script src="https://s3.amazonaws.com/site/y.js"></script><script src="https://cdn.example.net/z.js"></script>'
+			)
+		);
+
+		$this->assertSame(
+			array(
+				'script-src https://cdn.jsdelivr.net/npm/lib@1/x.js 1',
+				'script-src https://s3.amazonaws.com/site/y.js 1',
+				'script-src https://cdn.example.net 1',
+				'img-src https://unpkg.com 1',
+			),
+			self::flat( $this->scanner()->scan( $url )['issues'] )
+		);
+	}
 }

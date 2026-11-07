@@ -11,6 +11,8 @@ use CodoDigital\Csp\Http\HeaderSender;
 use CodoDigital\Csp\Policy\Directives;
 use CodoDigital\Csp\Policy\Policy;
 use CodoDigital\Csp\Reports\ReportRepository;
+use CodoDigital\Csp\Policy\ImportReview;
+use CodoDigital\Csp\Policy\Source;
 use CodoDigital\Csp\Scan\ScanScheduler;
 use CodoDigital\Csp\Settings\PolicyStore;
 use CodoDigital\Csp\Settings\Settings;
@@ -614,7 +616,11 @@ class AdminPage {
 	 */
 	public function render_scan_result( array $result, $label, $forget ) {
 		$context = 'login' === $result['context'] ? 'login' : 'site';
-		$open    = 'ok' !== $result['status'] ? ' open' : '';
+		// Only the recent scans list keeps the result an import reads back.
+		$rows = $forget && ! empty( $result['policies'] )
+			? ImportReview::review( (array) $result['policies'], $this->store->live( $context ), (string) Source::origin_of( (string) $result['url'] ) )
+			: array();
+		$open = 'ok' !== $result['status'] || ImportReview::pending( $rows ) > 0 ? ' open' : '';
 		echo '<details class="codo-csp-scan"' . esc_attr( $open ) . '><summary>';
 		if ( 'ok' === $result['status'] ) {
 			echo '<span class="codo-csp-ok">&#10003;</span> ';
@@ -636,6 +642,7 @@ class AdminPage {
 		}
 		$this->render_issues( (array) $result['issues'], $context, __( 'Not allowed by the live policy', 'codo-content-security-policy' ) );
 		$this->render_issues( (array) $result['draft'], $context, __( 'Not allowed by the draft', 'codo-content-security-policy' ) );
+		$this->render_import( $rows, (string) $result['url'], $context );
 		if ( $forget ) {
 			echo '<p>';
 			PolicyView::button(
@@ -652,6 +659,57 @@ class AdminPage {
 			echo '</p>';
 		}
 		echo '</details>';
+	}
+
+	/**
+	 * The reviewed rules of a page's other policies, with a form to import them.
+	 *
+	 * @param array<int, array<string, string>> $rows    Reviewed rows.
+	 * @param string                            $url     Scanned URL.
+	 * @param string                            $context Context.
+	 * @return void
+	 */
+	private function render_import( array $rows, $url, $context ) {
+		if ( empty( $rows ) ) {
+			return;
+		}
+		$labels = array(
+			ImportReview::ADD     => __( 'Safe to import', 'codo-content-security-policy' ),
+			ImportReview::CONFIRM => __( 'Risky: tick only if needed', 'codo-content-security-policy' ),
+			ImportReview::REFUSE  => __( 'Refused', 'codo-content-security-policy' ),
+			ImportReview::SKIP    => __( 'Not needed', 'codo-content-security-policy' ),
+		);
+		echo '<h3>' . esc_html__( 'Import CSP rules from this page', 'codo-content-security-policy' ) . '</h3>';
+		echo '<p class="description">' . esc_html__( 'These rules come from outside this plugin (the server, a CDN, another plugin or a meta tag). Importing adds to your policy and removes nothing. Browsers enforce separate policies together, so a merged policy can allow more than they did: check each rule is one you need.', 'codo-content-security-policy' ) . '</p>';
+		PolicyView::open_form();
+		PolicyView::hidden( 'import', $context, 'site', array( 'url' => $url ) );
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Rule', 'codo-content-security-policy' ) . '</th><th>' . esc_html__( 'Review', 'codo-content-security-policy' ) . '</th></tr></thead><tbody>';
+		foreach ( $labels as $verdict => $label ) {
+			foreach ( $rows as $row ) {
+				if ( $verdict !== $row['verdict'] ) {
+					continue;
+				}
+				$rule = '<code>' . esc_html( $row['directive'] . ' ' . $row['source'] ) . '</code>';
+				echo '<tr><td>';
+				if ( in_array( $verdict, array( ImportReview::ADD, ImportReview::CONFIRM ), true ) ) {
+					echo '<label><input type="checkbox" name="rules[]" value="' . esc_attr( ImportReview::key( $row ) ) . '"' . ( ImportReview::ADD === $verdict ? ' checked' : '' ) . '> ' . $rule . '</label>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped above.
+				} else {
+					echo $rule; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped above.
+				}
+				echo '</td><td><strong' . ( ImportReview::REFUSE === $verdict ? ' class="codo-csp-bad"' : '' ) . '>' . esc_html( $label ) . '</strong>';
+				if ( '' !== $row['reason'] ) {
+					echo '<br><span class="description">' . esc_html( $row['reason'] ) . '</span>';
+				}
+				echo '</td></tr>';
+			}
+		}
+		echo '</tbody></table>';
+		if ( ImportReview::pending( $rows ) > 0 ) {
+			echo '<p>';
+			submit_button( __( 'Import ticked rules', 'codo-content-security-policy' ), 'primary', 'submit', false );
+			echo '</p>';
+		}
+		echo '</form>';
 	}
 
 	/**
