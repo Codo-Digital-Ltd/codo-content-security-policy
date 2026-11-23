@@ -4,7 +4,7 @@ Tags: content security policy, csp, security headers, xss, clickjacking
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -175,16 +175,21 @@ The plugin does not contact any third-party service, collect usage data or track
 
 == Changelog ==
 
+= 1.2.0 =
+* Fixed: the header size warning uses the server's real FastCGI buffer size (read from the NGINX config, or set with `CODO_CSP_HEADER_BUFFER_SIZE` or the `codo_csp_header_buffer_size` filter) and leaves 1 KB for other headers, instead of a fixed 4 KB.
+
 = 1.1.0 =
 * New: import rules from another policy found by a scan, with a safety review of every rule. Existing rules are kept and never duplicated.
 * Changed: new rules can no longer allow a whole shared domain (such as *.cloudfront.net), or a whole public CDN (such as cdn.jsdelivr.net) for scripts. Rules you already have keep working and are flagged on the policy screen.
 * Changed: when a whole host would be refused, a scan's Allow button offers the exact file instead.
-* Changed: the header size warning uses the server's real FastCGI buffer size (read from the NGINX config, or set with `CODO_CSP_HEADER_BUFFER_SIZE` or the `codo_csp_header_buffer_size` filter) and leaves 1 KB for other headers, instead of a fixed 4 KB.
 
 = 1.0.0 =
 * First release: front-end and login policies, Report-Only by default, enforced mode with draft policies, built-in aggregated violation reports, page scanning after publishing, presets, page builder exclusions, cache purging, multisite network defaults and wp-config.php constants.
 
 == Upgrade Notice ==
+
+= 1.2.0 =
+No more false header-size warnings on servers with large FastCGI buffers: the warning now uses the server's real buffer size.
 
 = 1.1.0 =
 Import rules found by a scan, with a safety review. New rules can no longer allow whole shared domains or public CDNs for scripts; existing rules keep working and are flagged.
