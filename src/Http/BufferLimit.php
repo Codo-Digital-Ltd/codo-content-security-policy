@@ -117,7 +117,7 @@ class BufferLimit {
 				sprintf(
 					/* translators: 1: header size such as 4.1 KB, 2: buffer size such as 4 KB, 3: where the buffer size came from, such as "assumed NGINX default". */
 					__( 'Policy headers are %1$s, close to or over this server\'s %2$s FastCGI header buffer (%3$s). Remove sources you no longer need, raise fastcgi_buffer_size, or set the real size with the codo_csp_header_buffer_size filter.', 'codo-content-security-policy' ),
-					size_format( $size, 1 ),
+					size_format( $size, $size < KB_IN_BYTES ? 0 : 1 ),
 					size_format( $limit ),
 					$labels[ $source ]
 				),
@@ -128,7 +128,7 @@ class BufferLimit {
 			sprintf(
 				/* translators: 1: header size such as 4.1 KB, 2: buffer size such as 32 KB, 3: where the buffer size came from, such as "detected from nginx config". */
 				__( 'Policy headers are %1$s. This server\'s FastCGI header buffer is %2$s (%3$s), so this is within limits.', 'codo-content-security-policy' ),
-				size_format( $size, 1 ),
+				size_format( $size, $size < KB_IN_BYTES ? 0 : 1 ),
 				size_format( $limit ),
 				$labels[ $source ]
 			),
