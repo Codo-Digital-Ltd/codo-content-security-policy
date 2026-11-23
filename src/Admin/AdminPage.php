@@ -7,6 +7,7 @@
 
 namespace CodoDigital\Csp\Admin;
 
+use CodoDigital\Csp\Http\BufferLimit;
 use CodoDigital\Csp\Http\HeaderSender;
 use CodoDigital\Csp\Policy\Directives;
 use CodoDigital\Csp\Policy\Policy;
@@ -25,10 +26,9 @@ defined( 'ABSPATH' ) || exit;
  */
 class AdminPage {
 
-	const SLUG       = 'codo-csp';
-	const PER_PAGE   = 25;
-	const STYLE      = 'codo-csp-admin';
-	const SIZE_LIMIT = 4096;
+	const SLUG     = 'codo-csp';
+	const PER_PAGE = 25;
+	const STYLE    = 'codo-csp-admin';
 
 	/**
 	 * Settings.
@@ -365,10 +365,11 @@ class AdminPage {
 				echo '<p><strong>' . esc_html( $name ) . '</strong><code class="codo-csp-header">' . esc_html( $value ) . '</code></p>';
 			}
 		}
-		/* translators: %s: size such as 1.2 KB. */
-		echo '<p class="description">' . esc_html( sprintf( __( 'Total size: %s.', 'codo-content-security-policy' ), size_format( $size, 1 ) ) ) . '</p>';
-		if ( $size > self::SIZE_LIMIT ) {
-			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'The headers are over 4 KB. NGINX with default FastCGI buffers can fail with "upstream sent too big header" (502). Remove sources you no longer need, or raise fastcgi_buffer_size.', 'codo-content-security-policy' ) . '</p></div>';
+		list( $warn, $message ) = BufferLimit::check( $size );
+		if ( $warn ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html( $message ) . '</p></div>';
+		} else {
+			echo '<p class="description">' . esc_html( $message ) . '</p>';
 		}
 	}
 

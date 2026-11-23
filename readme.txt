@@ -4,7 +4,7 @@ Tags: content security policy, csp, security headers, xss, clickjacking
 Requires at least: 6.2
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -44,7 +44,7 @@ It is built by [Codo Digital](https://codo.digital), a UK web development and ma
 * After you publish or update content, the page is fetched in the background as a logged-out visitor. Every script, stylesheet, font, image, iframe, media file and form target is checked against the policy, including the fonts and images inside your site's own stylesheets. Stylesheets hosted elsewhere are never downloaded; for Google Fonts and Bunny Fonts the font host is filled in automatically.
 * Problems show in the posts list, in the editor, and on the Scan tab, each with an **Allow** button.
 * You can scan any page, the login page, or your 20 most recently updated pages.
-* Scans also warn when the server, a CDN or another plugin sends a second policy, and when the headers grow past 4 KB, which breaks NGINX's default FastCGI buffers.
+* Scans also warn when the server, a CDN or another plugin sends a second policy, and when the headers come close to the server's FastCGI header buffer, which NGINX needs to fit every header PHP sends. The buffer size is read from the NGINX config where PHP can read it, or set with `CODO_CSP_HEADER_BUFFER_SIZE`.
 * When a scan finds rules from another policy, you can import them alongside your own. Each rule is reviewed first: safe ones are ticked, risky ones need your decision, and unsafe ones are refused. Nothing is removed or duplicated.
 
 = Also =
@@ -127,7 +127,15 @@ Browsers enforce every policy they receive, so a second one (from your server co
 
 = My site returns 502 errors after adding many sources =
 
-NGINX's default FastCGI buffer is 4 KB or 8 KB, and a large policy can exceed it ("upstream sent too big header"). The policy screen shows the header size and warns over 4 KB. Remove sources you no longer need (wildcards like `https://*.example.com` can replace several hosts), or raise `fastcgi_buffer_size` and `fastcgi_buffers`.
+NGINX's default FastCGI buffer is 4 KB or 8 KB, and every header PHP sends (the policy, cookies, `Link` and cache headers) must fit in it, or NGINX fails with "upstream sent too big header". Headers NGINX adds itself with `add_header` don't count.
+
+The policy screen and scans warn when the policy headers come within 1 KB of the buffer. On NGINX the plugin reads `fastcgi_buffer_size` from `/etc/nginx/nginx.conf`, `conf.d`, `sites-enabled` and the files they include, if PHP may read them, and uses the smallest value (checked again every 12 hours). Otherwise it assumes 4 KB, or 8 KB on Apache and LiteSpeed. If your host's real size differs, set it in `wp-config.php`:
+
+`define( 'CODO_CSP_HEADER_BUFFER_SIZE', 32768 ); // bytes`
+
+or with the `codo_csp_header_buffer_size` filter, which overrides the constant. The 1 KB margin can be changed with `codo_csp_header_buffer_headroom`.
+
+To fix the warning, remove sources you no longer need (wildcards like `https://*.example.com` can replace several hosts), or raise `fastcgi_buffer_size` and `fastcgi_buffers`.
 
 = Why can't I add 'https:' or * to script-src? =
 
@@ -167,6 +175,9 @@ The plugin does not contact any third-party service, collect usage data or track
 
 == Changelog ==
 
+= 1.2.0 =
+* Fixed: the header size warning uses the server's real FastCGI buffer size (read from the NGINX config, or set with `CODO_CSP_HEADER_BUFFER_SIZE` or the `codo_csp_header_buffer_size` filter) and leaves 1 KB for other headers, instead of a fixed 4 KB.
+
 = 1.1.0 =
 * New: import rules from another policy found by a scan, with a safety review of every rule. Existing rules are kept and never duplicated.
 * Changed: new rules can no longer allow a whole shared domain (such as *.cloudfront.net), or a whole public CDN (such as cdn.jsdelivr.net) for scripts. Rules you already have keep working and are flagged on the policy screen.
@@ -176,6 +187,9 @@ The plugin does not contact any third-party service, collect usage data or track
 * First release: front-end and login policies, Report-Only by default, enforced mode with draft policies, built-in aggregated violation reports, page scanning after publishing, presets, page builder exclusions, cache purging, multisite network defaults and wp-config.php constants.
 
 == Upgrade Notice ==
+
+= 1.2.0 =
+No more false header-size warnings on servers with large FastCGI buffers: the warning now uses the server's real buffer size.
 
 = 1.1.0 =
 Import rules found by a scan, with a safety review. New rules can no longer allow whole shared domains or public CDNs for scripts; existing rules keep working and are flagged.

@@ -154,8 +154,8 @@ class AdminPageTest extends AdminTestCase {
 		$this->assertStringContainsString( 'name="context" value="site"', $html );
 		$this->assertStringContainsString( '<h2>Headers sent</h2>', $html );
 		$this->assertStringContainsString( '<p><strong>Content-Security-Policy-Report-Only</strong><code class="codo-csp-header">default-src &#039;self&#039;</code></p>', $html );
-		$this->assertStringContainsString( 'Total size: ' . ( strlen( 'Content-Security-Policy-Report-Only' ) + strlen( "default-src 'self'" ) + 4 ) . ' B.', $html );
-		$this->assertStringNotContainsString( 'over 4 KB', $html );
+		$this->assertStringContainsString( '<p class="description">Policy headers are ' . ( strlen( 'Content-Security-Policy-Report-Only' ) + strlen( "default-src 'self'" ) + 4 ) . ' B. This server&#039;s FastCGI header buffer is 4096 B (assumed NGINX default), so this is within limits.</p>', $html );
+		$this->assertStringNotContainsString( 'notice-warning inline', $html );
 		$this->assertStringEndsWith( '</div>', $html );
 		$this->assertArrayNotHasKey( 'codo_csp_notice_1', $this->transients, 'notices are shown once' );
 	}
@@ -205,7 +205,7 @@ class AdminPageTest extends AdminTestCase {
 		$this->assertStringContainsString( '<div class="description">Reports go to https://collector.example.com/r?a=1&amp;b=&lt;2&gt;.</div>', $html );
 	}
 
-	public function test_header_preview_warns_over_4kb() {
+	public function test_header_preview_warns_near_the_buffer_size() {
 		$this->headers->shouldReceive( 'build' )->with( 'site' )->andReturn(
 			array(
 				'Content-Security-Policy'             => array( str_repeat( 'a', 3000 ) ),
@@ -217,9 +217,8 @@ class AdminPageTest extends AdminTestCase {
 
 		$size = strlen( 'Content-Security-Policy' ) + 3000 + 4 + 2 * ( strlen( 'Content-Security-Policy-Report-Only' ) + 4 ) + 1000 + 3;
 		$this->assertGreaterThan( 4096, $size );
-		$this->assertStringContainsString( 'Total size: ' . $size . ' B.', $html );
 		$this->assertStringContainsString( '<code class="codo-csp-header">&lt;x&gt;</code>', $html );
-		$this->assertStringContainsString( '<div class="notice notice-warning inline"><p>The headers are over 4 KB.', $html );
+		$this->assertStringContainsString( '<div class="notice notice-warning inline"><p>Policy headers are ' . $size . ' B, close to or over this server&#039;s 4096 B FastCGI header buffer (assumed NGINX default).', $html );
 	}
 
 	/**
