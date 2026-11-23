@@ -7,6 +7,7 @@
 
 namespace CodoDigital\Csp\Scan;
 
+use CodoDigital\Csp\Http\BufferLimit;
 use CodoDigital\Csp\Http\HeaderSender;
 use CodoDigital\Csp\Policy\Directives;
 use CodoDigital\Csp\Policy\Policy;
@@ -393,8 +394,9 @@ class Scanner {
 				$size += strlen( $name ) + strlen( $value ) + 4;
 			}
 		}
-		if ( $size > 4096 ) {
-			$warnings[] = __( 'The policy headers are over 4 KB. NGINX with default FastCGI buffers can fail with "upstream sent too big header" (502). Remove unused sources or raise fastcgi_buffer_size.', 'codo-content-security-policy' );
+		list( $warn, $message ) = BufferLimit::check( $size );
+		if ( $warn ) {
+			$warnings[] = $message;
 		}
 		return $warnings;
 	}

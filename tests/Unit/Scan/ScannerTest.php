@@ -670,7 +670,7 @@ class ScannerTest extends TestCase {
 		$this->remote[ self::PAGE ] = self::response( self::html( '' ) );
 		$warnings                   = $this->scanner()->scan( self::PAGE )['warnings'];
 		$this->assertCount( 1, $warnings );
-		$this->assertStringContainsString( 'over 4 KB', $warnings[0] );
+		$this->assertStringContainsString( 'close to or over this server\'s 4096 B FastCGI header buffer (assumed NGINX default)', $warnings[0] );
 	}
 
 	public function test_no_headers_when_disabled_by_filter() {
