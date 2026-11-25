@@ -2,7 +2,7 @@
 Contributors: cododigital
 Tags: content security policy, csp, security headers, xss, clickjacking
 Requires at least: 6.2
-Tested up to: 7.1
+Tested up to: 7.2
 Requires PHP: 7.4
 Stable tag: 1.2.0
 License: GPLv2 or later
